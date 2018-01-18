@@ -211,3 +211,80 @@ rmse <- function()
 
 MAE(pred = trainData, obs = testData, na.rm = TRUE)
 
+
+hist(resampled_data$daily_ams.1)
+
+
+install.packages("devtools")
+library(devtools)
+install_github("NVE/fitdistrib")
+install.packages('shiny')
+library(shiny)
+install.packages("glogis")
+install.packages("tibble")
+install.packages("rlang")
+install_github("NVE/FlomKart_ShinyApp")
+install_github("NVE/FlomKart")
+library(FlomKartShinyApp)
+library(fitdistrib)
+library(nsRFA)
+library(FlomKart)
+library(evd)
+
+fittedtest <- f.GEV(x = resampled_data$daily_ams.1,
+                    xi = param_estimate$estimate, 
+                    alfa =param_estimate$estimate,
+                    k = param_estimate$estimate)
+
+A2_GOFlaio(resampled_data$daily_ams.1, dist="GEV")
+
+ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
+
+ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
+
+testriver <- ams_data[ams_data$station == 2.25,]
+
+resampled_data <- testriver[sample(nrow(testriver)),]
+
+
+param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
+#plot( resampled_data$daily_ams_dates, resampled_data$daily_ams.1, pch= 16, cex= 0.2)
+
+Lmoments(resampled_data$daily_ams.1)
+
+FlomKartShinyApp::plot4server(resampled_data$daily_ams.1, param = param_estimate$estimate, distr=3)
+histo4param_values(distr = 3, param = param_estimate$estimate, method = "gev_Lmom")
+
+goodnessoffittest <- gof_ad(resampled_data$daily_ams.1, 
+       param = param_estimate$estimate, 
+       distr = "gev",
+       test.stat=TRUE,
+       p.value=FALSE)
+goodnessoffittest
+
+plot_all (resampled_data$daily_ams.1,
+          GOF.list =c(NA, NA, as.numeric(goodnessoffittest)),
+          param = param_estimate,
+          distr = "gev",
+         method = "ad")
+
+plot_qq(resampled_data$daily_ams.1,
+        param = param_estimate,
+        distr = "gev")
+
+param_estimate <- as.data.frame(param_estimate)
+
+plot_rlevel(resampled_data$daily_ams.1,
+            param = param_estimate,
+            distr = "gev")
+
+gum_param <- gev_Lmom(resampled_data$daily_ams.1)
+FlomKartShinyApp::plot4server(resampled_data$daily_ams.1, param = param_estimate$estimate, distr=3)
+
+gum_param <- as.data.frame(gum_param)
+
+goodnessoffittest <- gof_ad(resampled_data$daily_ams.1, 
+                            param = param_estimate$estimate, 
+                            distr = "gev",
+                            test.stat=TRUE,
+                            p.value=FALSE)

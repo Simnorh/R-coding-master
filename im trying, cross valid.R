@@ -4,7 +4,7 @@ ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 
 ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
 
-testriver <- ams_data[ams_data$station == 2.36,]
+testriver <- ams_data[ams_data$station == 2.28,]
 
 resampled_data <- testriver[sample(nrow(testriver)),]
 
@@ -32,11 +32,12 @@ parameterGrid <- expand.grid(mtry=c(1,2,3,4,5)) #check out video on this part ag
 #and now fit the model using train function
 #to know more about train function run ?train in console
 
-modelRandom <- train(daily_ams.1~daily_ams.1+FGP+fine_ams,
+modelRandom <- train(TrainDF$daily_ams.1~TrainDF$daily_ams.1,
                      data = TrainDF,
                      method = "rf",
                      trControl = ControlParameters,
-                     tuneGrid = parameterGrid)
+                     tuneGrid = parameterGrid,
+                     na.action = na.omit)
 modelRandom
 
 
@@ -49,5 +50,5 @@ predictions <- predict(modelRandom, newdata = TestDF)
 
 #check confusion matrix
 
-t <- table(predictions = predictions, actual=TestDF$variable)
+t <- table(prediction = predictions, actual=TestDF$daily_ams.1)
 t
