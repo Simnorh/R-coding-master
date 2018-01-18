@@ -119,7 +119,8 @@ resampled_data <- testriver[sample(nrow(testriver)),]
 
 #Dataset is read in
 #column "station" has been created to identify rivers based on 1 variable instead of two
-#creates testriver dataframe consisting of all rows containing data from a given station (any way to do this for all stations simultaneously?)
+#creates testriver dataframe consisting of all rows containing data from a given station 
+#(any way to do this for all stations simultaneously?)
 #Data of testriver dataframe is resampled randomly
 
 #try installing tidyverse
@@ -226,6 +227,7 @@ install.packages("rlang")
 install_github("NVE/FlomKart_ShinyApp")
 install_github("NVE/FlomKart")
 install.packages("plotrix")
+install_github("Simnorh/FlomKart")
 library(FlomKartShinyApp)
 library(fitdistrib)
 library(nsRFA)
@@ -287,7 +289,16 @@ FlomKartShinyApp::plot4server(resampled_data$daily_ams.1, param = param_estimate
 gum_param <- as.data.frame(gum_param)
 
 goodnessoffittest <- gof_ad(resampled_data$daily_ams.1, 
-                            param = param_estimate$estimate, 
+                            param_estimate$estimate, 
                             distr = "gev",
                             test.stat=TRUE,
                             p.value=FALSE)
+
+param_estimate <- as.data.frame(param_estimate)
+
+gof_kolm <- gof_ks(resampled_data$daily_ams.1,
+                   param_estimate$estimate,
+                   distr = "gev",
+                   test.stat = TRUE,
+                   p.value = FALSE)
+gof_kolm
