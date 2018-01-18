@@ -225,11 +225,13 @@ install.packages("tibble")
 install.packages("rlang")
 install_github("NVE/FlomKart_ShinyApp")
 install_github("NVE/FlomKart")
+install.packages("plotrix")
 library(FlomKartShinyApp)
 library(fitdistrib)
 library(nsRFA)
 library(FlomKart)
 library(evd)
+library(plotrix)
 
 fittedtest <- f.GEV(x = resampled_data$daily_ams.1,
                     xi = param_estimate$estimate, 
@@ -260,10 +262,11 @@ goodnessoffittest <- gof_ad(resampled_data$daily_ams.1,
        distr = "gev",
        test.stat=TRUE,
        p.value=FALSE)
-goodnessoffittest
+
+gof_test = data.frame(CS = NA, KS = NA, AD = goodnessoffittest)
 
 plot_all (resampled_data$daily_ams.1,
-          GOF.list =c(NA, NA, as.numeric(goodnessoffittest)),
+          GOF.list =gof_test,
           param = param_estimate,
           distr = "gev",
          method = "ad")
