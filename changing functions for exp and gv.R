@@ -1,326 +1,14 @@
-#10 fold cross validation
-# 1. train on 1-9 test 10
-# 2. train on 2-10 test 1
-# 3. train on 1 + 3-10 test 2
-#and so on
-ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
-
-set.seed(123)
-
-#He imports library MASS for his iris dataset
-#and caret for cross validation
-
-#library(MASS, quietly=TRUE)
-
-methods(sigma)
-install.packages("pbkrtest", dependencies = TRUE)
-install.packages("car",dependencies=TRUE)
-install.packages("lme4", dependencies = TRUE)
-install.packages("caret",dependencies=TRUE)
-
-library(car)
-library(lme4)
-library(caret)
-#Create train and test dataset, target variable ??
-
-library(caTools)
-
-#Storing datasetx into dataframe named dataframe, allows for reusing of coding for every dataset, exchange name of datasetx
-DataFrame <- datasetx
-
-#Help datasetx to know more about dataset
-help("datasetx")
-
-#check structure of data
-str(DataFrame)
-
-#check dimensions of data
-dim(DataFrame)
-
-#first 3 row
-head(DataFrame,3)
-
-#summary of Data
-summary(DataFrame)
-
-#check number of unique values
-apply(DataFrame,2,function(x) length(unique(x)))
-
-#check dataset again
-str(DataFrame)
-
-
-
-ind = createDataPartition(riv$elv, p = 9/10, list = FALSE)
-TrainDF <- riv[ind,]
-TestDF <- riv[-ind,]
-
-#We will be using the caret package for crossvalidation.Function
-
-ControlParameters <- trainControl(method = "cv",
-                                  number = 10,
-                                  savePredictions = TRUE,
-                                  classProbs = TRUE)
-method("cv") #cross validation method
-number = 10 #number of cross validations
-classProbs =TRUE #model will save predictions for each class
-
-
-#Lets choose the model parameters. Here we are choosing mtry of Random
-#and choosing 3 values, you can choose another model also and its parameters in the function expand.grid 
-#which will create a grid of all combinations of parameters
-
-parameterGrid <- expand.grid(mtry=c(2,3,4)) #check out video on this part again
-
-#We will put the above parameter in the model below in trControl arguement
-#and now fit the model using train function
-#to know more about train function run ?train in console
-
-modelRandom <- train(variable~.,
-                     data = TrainDF,
-                     method = "lm",
-                     trControl = ControlParameters,
-                     tuneGrid = parameterGrid)
-                     #preProcess = c('center', 'scale')"can be removed")
-#testvariable~. means we want to predict testvariable and ~. means by way of all other variables
-#method="rf" means random forest model
-#preProcess centers and scales data
-#to know which models or methods are available other than random forest names(getModelInfo())
-
-names(getModelInfo)
-modelRandom
-
-
-predictions <- predict(modelRandom, TestDF)
-
-#check confusion matrix
-
-t <- table(predictions = predictions, actual=TestDF$variable)
-t
-
-
-# 1. resample data.
-# 2. dele opp datasettet i 10 biter
-# 3. se hvordan estimering av 100 års flom endrer seg ved bruk av forskjellige treningssett
-# pålitelighets kriterie
-
-setwd("D:/Master/Thesis/Data")
-
-ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
-
-ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
-
-testriver <- ams_data[ams_data$station == 2.1,]
-
-qqplot(testriver$daily_ams_dates, testriver$daily_ams.1)
-
-resampled_data <- testriver[sample(nrow(testriver)),]
-
-
-#Dataset is read in
-#column "station" has been created to identify rivers based on 1 variable instead of two
-#creates testriver dataframe consisting of all rows containing data from a given station 
-#(any way to do this for all stations simultaneously?)
-#Data of testriver dataframe is resampled randomly
-
-#try installing tidyverse
-#install.packages("tydiverse", dependencies = TRUE)
-#Maybe tydiverse will be useful later, now? not so much.
-
-data_folds <- cut(seq(1, nrow(resampled_data)), breaks = 10, labels=FALSE)
-#divides dataframe into 10 "equally" sized chunks, NB requires randomized dataset!
-       
-
-for(i in 1:10){
-  testIndexes <- which (data_folds == i, arr.ind = TRUE)
-  testData <- resampled_data[testIndexes, ]
-  trainData <- resampled_data[-testIndexes,]
+exp_Lmom <- function(dat){
+  
+  param <- list(estimate = c(NA, NA), se = c(NA, NA))
+  if(length(dat) >= 1){
+    dat.mom <- Lmoments(dat)
+    param$estimate <- invisible(as.numeric(par.exp(dat.mom[1], dat.mom[2])))
+    invisible(param)
+  } else {
+    print(paste("Warning:this station has les than ",1,"years of data, use another method", collapse = "", sep = ""))
+  }
 }
-
-
-
-library(car)
-library(lme4)
-library(caret)
-#Create train and test dataset, target variable ??
-
-library(caTools)
-
-indices = createDataPartition(testriver$daily_ams.1, p = 8/10, list = FALSE)
-TrainDF <- testriver[indices,]
-TestDF <- testriver[-indices,]
-
-#We will be using the caret package for crossvalidation.Function
-
-ControlParameters <- trainControl(method = "cv",
-                                  number = 10,
-                                  savePredictions = TRUE,
-                                  classProbs = TRUE)
-method("cv") #cross validation method
-number = 10 #number of cross validations
-classProbs =TRUE #model will save predictions for each class
-
-
-#Lets choose the model parameters. Here we are choosing mtry of Random
-#and choosing 3 values, you can choose another model also and its parameters in the function expand.grid 
-#which will create a grid of all combinations of parameters
-
-parameterGrid <- expand.grid(mtry=c(1,2,3,4,5,6)) #check out video on this part again
-
-#We will put the above parameter in the model below in trControl arguement
-#and now fit the model using train function
-#to know more about train function run ?train in console
-
-modelRandom <- train(daily_ams.1~.,
-                     data = TrainDF,
-                     method = "lm",
-                     trControl = ControlParameters,
-                     tuneGrid = parameterGrid,
-                     na.action = na.exclude)
-#preProcess = c('center', 'scale')"can be removed")
-#testvariable~. means we want to predict testvariable and ~. means by way of all other variables
-#method="rf" means random forest model
-#preProcess centers and scales data
-#to know which models or methods are available other than random forest names(getModelInfo())
-
-names(getModelInfo)
-modelRandom
-
-
-predictions <- predict(modelRandom, TestDF)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-rmse <- function()
-{
-  sqrt(mean(error^2))
-}
-
-
-
-
-MAE(pred = trainData, obs = testData, na.rm = TRUE)
-
-
-hist(resampled_data$daily_ams.1)
-
-
-install.packages("devtools")
-library(devtools)
-install_github("NVE/fitdistrib")
-install.packages('shiny')
-library(shiny)
-install.packages("glogis")
-install.packages("tibble")
-install.packages("rlang")
-install_github("NVE/FlomKart_ShinyApp")
-install_github("NVE/FlomKart")
-install.packages("plotrix")
-install_github("Simnorh/FlomKart")
-install.packages('addtable2plot')
-install.packages("reshape2")
-install.packages ("haven")
-install.packages("tidyverse")
-library(tidyverse)
-library (reshape2)
-library(FlomKartShinyApp)
-library(fitdistrib)
-library(nsRFA)
-library(FlomKart)
-library(evd)
-library(plotrix)
-
-
-
-fittedtest <- f.GEV(x = resampled_data$daily_ams.1,
-                    xi = param_estimate$estimate, 
-                    alfa =param_estimate$estimate,
-                    k = param_estimate$estimate)
-
-A2_GOFlaio(resampled_data$daily_ams.1, dist="GEV")
-
-setwd("D:/Master/Thesis/Data")
-
-ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
-
-ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
-
-#resampled_data <- ams_data[sample(nrow(ams_data)),]
-#group_by (resampled_data, station)
-testriver <- ams_data[ams_data$station == 2.25,]
-
-set.seed(2661)
-resampled_data <- testriver[sample(nrow(testriver)),]
-
-
-param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
-#plot( resampled_data$daily_ams_dates, resampled_data$daily_ams.1, pch= 16, cex= 0.2)
-
-Lmoments(resampled_data$daily_ams.1)
-
-FlomKartShinyApp::plot4server(resampled_data$daily_ams.1, param = param_estimate$estimate, distr=3)
-histo4param_values(distr = 3, param = param_estimate$estimate, method = "gev_Lmom")
-
-goodnessoffittest <- gof_ad(resampled_data$daily_ams.1, 
-       param = param_estimate$estimate, 
-       distr = "gev",
-       test.stat=TRUE,
-       p.value=FALSE)
-
-gof_test = data.frame(CS = NA, KS = NA, AD = goodnessoffittest)
-
-plot_all (resampled_data$daily_ams.1,
-          GOF.list = gof_test,
-          param = param_estimate,
-          distr = "gev",
-         method = "ad")
-
-plot_qq(resampled_data$daily_ams.1,
-        param = param_estimate,
-        distr = "gev")
-
-param_estimate <- as.data.frame(param_estimate)
-
-plot_rlevel(resampled_data$daily_ams.1,
-            param = param_estimate,
-            distr = "gev")
-
-gum_param <- gev_Lmom(resampled_data$daily_ams.1)
-FlomKartShinyApp::plot4server(resampled_data$daily_ams.1, param = param_estimate$estimate, distr=3)
-
-gum_param <- as.data.frame(gum_param)
-
-goodnessoffittest <- gof_ad(resampled_data$daily_ams.1, 
-                            param = param_estimate$estimate, 
-                            distr = "gev",
-                            test.stat=TRUE,
-                            p.value=FALSE)
-
-param_estimate <- as.data.frame(param_estimate)
-
-gof_kolm <- gof_ks(resampled_data$daily_ams.1,
-                   param_estimate$estimate,
-                   distr = "gev",
-                   test.stat = TRUE,
-                   p.value = FALSE)
-gof_kolm
-
-plot_ecdf(resampled_data$daily_ams.1,
-          param_estimate,
-          distr = "gev")
-#plot density needs data as spesific type $
-#param cant have spesified column
 
 gp_Lmom <- function(dat) {
   
@@ -350,12 +38,42 @@ gp_Lmom <- function(dat) {
   }
 }
 
+#expLmom <- function(dat) {
+  
+  param <- list(estimate = c(NA, NA), se = c(NA, NA))
+  if (length(dat) >= 1) {
+    
+    dat.Lmom <- Lmoments(dat)
+    
+    
+    fail_safe <- failwith(NULL, par.exp)
+    fitted.param <- fail_safe(dat.Lmom[1], dat.Lmom[2])
+    
+    if (is.null(fitted.param) == TRUE) {
+      print("Warning: the function par.GEV failed in gev_Lmom")
+      invisible(param)
+    } else {
+      #fitted.param <- as.numeric(Lmom.exp(dat.mom[1], dat.mom[2]))
+      # Creating the returning list
+      param$estimate <- c(fitted.param$xi, fitted.param$alfa)
+      # Standard error is not yet implemented
+      invisible(param)
+    }
+  } else {
+    print(paste("Warning: this station has less than ", 1," years of data. Use another method!",
+                collapse = "", sep = ""))
+    invisible(param)
+  }
+}
 
 gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
-  AD <- NA
+  AD <- NA 
   fail_safe <- failwith(NA, goftest::ad.test)
   
+  if (distr == 'exp') {
+    temp <- fail_safe(dat, "F.exp", param[1], param[2])
+  }
   if (distr == 'gumbel') {
     temp <- fail_safe(dat, "pgumbel", param[1], param[2])
   }
@@ -380,13 +98,50 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
   } else if (test.stat == TRUE && is.list(temp) == TRUE && is.numeric(temp$statistic) == TRUE && !is.infinite(temp$statistic) == TRUE) {
     AD <- temp$statistic
   }
- if (is.na(AD)) {print("Warning: gof_ad has failed with distr...")}
+  if (is.na(AD)) {print("Warning: gof_ad has failed with distr...")}
   invisible(AD)
+}
+
+gof_ks <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
+  
+  KS <- NA
+  fail_safe <- failwith(NA, stats::ks.test)
+  
+  if (distr == 'gumbel') {
+    temp <- fail_safe(dat, "pgumbel", param[1], param[2])
+  }
+  if (distr == 'exp') {
+    temp <- fail_safe(dat, "F.exp", param[1], param[2])
+  }
+  if (distr == 'gamma') {
+    temp <- fail_safe(dat, "pgamma", param[1], rate = param[2])
+  }
+  if (distr == 'gp') {
+    temp <- fail_safe(dat, "F.genpar", param[1], param[2], param[3])
+  }
+  if (distr == 'gev') {
+    temp <- fail_safe(dat, "pgev", param[1], param[2], param[3])
+  }
+  if (distr == 'gl') {
+    temp <- fail_safe(dat, "F.genlogis", param[1], param[2], param[3])
+  }
+  if (distr == 'pearson') {
+    temp <- fail_safe(dat, "F.gamma", param[1], param[2], param[3])
+  }
+  
+  if (p.value == TRUE && is.list(temp) == TRUE) {
+    KS <- temp$p.value
+  }
+  else if (test.stat == TRUE && is.list(temp) == TRUE && is.numeric(temp$statistic) == TRUE && !is.infinite(temp$statistic) == TRUE) {
+    KS <- temp$statistic
+  }
+  # We could add if (is.na(KS)) {print("Warning: gof_ks has failed with distr...)}
+  invisible(KS)
 }
 
 plotdensity  <- function(dat, GOF.list, param, distr = "distr") {
   
-  xmax <- max(dat)*1.2
+  xmax <- max(dat)*1.5
   x <- seq(0, xmax, xmax / 100)
   
   ymax <- max(density(dat)$y)*1.2
@@ -397,9 +152,11 @@ plotdensity  <- function(dat, GOF.list, param, distr = "distr") {
   par(new = TRUE)
   
   # Distribution specific y vector
+  if(distr == 'exp')   y <- f.exp(x, param$estimate[1], param$estimate[2])
   if(distr == 'gumbel')   y <- dgumbel(x, param$estimate[1], param$estimate[2])
   if(distr == 'gamma')    y <- dgamma(x, param$estimate[1], param$estimate[2])
-  if(distr == 'gev')      y <- evd::dgev(x, param$estimate[1], param$estimate[2], param$estimate[3])  # I should have done that for most functions coming from packages...
+  if(distr == 'gev')      y <- evd::dgev(x, param$estimate[1], param$estimate[2], param$estimate[3]) 
+  # I should have done the above for most functions coming from packages...
   if(distr == 'gl')       y <- f.genlogis(x, param$estimate[1], param$estimate[2], param$estimate[3])
   if(distr == 'gp')       y <- f.genpar(x, param$estimate[1], param$estimate[2], param$estimate[3])
   if(distr == 'pearson')  y <- f.gamma(x, param$estimate[1], param$estimate[2], param$estimate[3])
@@ -422,6 +179,11 @@ plotrlevel <- function(dat, param, distr = "distr") {
   empq <- sort(dat)
   
   # The x vector is distribution specific
+  if(distr == 'exp') {
+    x <- 1 / (1 - F.exp(y, param$estimate[1], param$estimate[2]))
+    # empT <- 1/(1-(seq(1:length(empq))-0.44)/(length(empq))+0.12) # Gringorten, optimized for the gumbel distribution
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.50) / (length(empq)))   # Hazen, a traditional choice
+  }
   if(distr == 'gumbel') {
     x <- 1 / (1 - pgumbel(y, param$estimate[1], param$estimate[2]))
     # empT <- 1/(1-(seq(1:length(empq))-0.44)/(length(empq))+0.12) # Gringorten, optimized for the gumbel distribution
@@ -468,6 +230,7 @@ plotecdf  <- function(dat, param, distr = "distr") {
   x <- seq(0, xmax, xmax / 100)
   
   # Distribution specific y vector
+  if(distr == 'exp')    y <- F.exp(x, param$estimate[1], param$estimate[2])
   if(distr == 'gumbel') y <- pgumbel(x, param$estimate[1], param$estimate[2])
   if(distr == 'gamma')  y <- pgamma(x, param$estimate[1], param$estimate[2])
   if(distr == 'gev')    y <- evd::pgev(x, param$estimate[1], param$estimate[2], param$estimate[3])
@@ -490,6 +253,7 @@ plotqq  <- function(dat, param, distr = "distr") {
   p.values <- (seq(1:length(dat)) - 0.5) / length(dat)   # Hazen, a traditional choice
   y <- sort(dat)
   
+  if(distr == 'gamma')  x <- sort(rand.exp(p.values, param$estimate[1], param$estimate[2]))
   if(distr == 'gamma')  x <- sort(rgamma(p.values, param$estimate[1], param$estimate[2]))
   if(distr == 'gumbel') {
     # pvalues <- (seq(1:length(dat))-0.44)/(length(dat)+0.12) # Gringorten, optimized for the gumbel distribution
@@ -525,10 +289,14 @@ plotall  <- function(dat, GOF.list, param, distr = "distr", method = "method") {
   addtable2plot(0, 0, nbs, bty = "o", bg = "lightgray", display.rownames = TRUE, xpad = 0, ypad = 0)
   
   # Add a table with the fitting results
-  if(distr == 'gumbel' | distr == 'gamma')  {
+  if(distr == 'gumbel'| distr == 'gamma')  {
     nbs <- matrix(round(c(param$estimate[1], param$estimate[2], param$se[1], param$se[2]), 2), ncol = 2)
     rownames(nbs) <- c("Location", "Scale")
-  } else {
+  }else if(distr == 'exp')  {
+    nbs <- matrix(round(c(param$estimate[1], param$estimate[2], param$se[1], param$se[2]), 2), ncol = 2)
+    rownames(nbs) <- c("Location", "Scale")
+  }  
+  else {
     nbs <- matrix(round(c(param$estimate[1], param$estimate[2], param$estimate[3], param$se[1], param$se[2], param$se[3]), 2), ncol = 2)
     rownames(nbs) <- c("Location", "Scale", "Shape")
   }
@@ -541,6 +309,7 @@ plotall  <- function(dat, GOF.list, param, distr = "distr", method = "method") {
   plotqq(dat, param, as.character(distr))
 }
 
+ams_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
 ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 
 ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
@@ -552,14 +321,12 @@ testriver <- ams_data[ams_data$station == 2.11,]
 set.seed(2661)
 resampled_data <- testriver[sample(nrow(testriver)),]
 
-
-parest <- gp_Lmom(resampled_data$daily_ams.1)
+parest <- gp_Lmom(resampled_data$flood.1)
+parest2 <- expLmom(resampled_data$flood.1)
 parest <- as.data.frame(parest)
 param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
 
-
-
-gofadtest <- gofad(resampled_data$daily_ams.1,
+gofadtest <- gofad(resampled_data$flood.1,
                    parest$estimate,
                    distr = "gp",
                    test.stat=TRUE,
@@ -567,8 +334,8 @@ gofadtest <- gofad(resampled_data$daily_ams.1,
 
 goftest <- data.frame(CS = NA, KS = NA, AD = gofadtest)
 
-plotall (resampled_data$daily_ams.1,
-          GOF.list = goftest,
-          param = parest,
-          distr = "gp",
-          method = "ad")
+plotall (resampled_data$flood.1,
+         GOF.list = goftest,
+         param = parest,
+         distr = "gp",
+         method = "ad")
