@@ -141,7 +141,7 @@ gof_ks <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FAL
 
 plotdensity  <- function(dat, GOF.list, param, distr = "distr") {
   
-  xmax <- max(dat)*1.5
+  xmax <- max(dat)*1.2
   x <- seq(0, xmax, xmax / 100)
   
   ymax <- max(density(dat)$y)*1.2
@@ -253,7 +253,7 @@ plotqq  <- function(dat, param, distr = "distr") {
   p.values <- (seq(1:length(dat)) - 0.5) / length(dat)   # Hazen, a traditional choice
   y <- sort(dat)
   
-  if(distr == 'gamma')  x <- sort(rand.exp(p.values, param$estimate[1], param$estimate[2]))
+  if(distr == 'exp')  x <- sort(rand.exp(p.values, param$estimate[1], param$estimate[2]))
   if(distr == 'gamma')  x <- sort(rgamma(p.values, param$estimate[1], param$estimate[2]))
   if(distr == 'gumbel') {
     # pvalues <- (seq(1:length(dat))-0.44)/(length(dat)+0.12) # Gringorten, optimized for the gumbel distribution
@@ -309,33 +309,110 @@ plotall  <- function(dat, GOF.list, param, distr = "distr", method = "method") {
   plotqq(dat, param, as.character(distr))
 }
 
-ams_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
+plot_rlevel <- function (dat, param, distr.index = 1){
+  xmin <- min(dat)
+  xmax <- max(dat) * 1.5
+  y <- seq(xmin, xmax, length = 100)
+  empq <- sort(dat)
+  if (distr.index == 1) {
+    x <- 1/(1 - pgumbel(y, param[1], param[2]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 2) {
+    x <- 1/(1 - F.exp(y, param[1], param[2]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 3) {
+    x <- 1/(1 - pgamma(y, param[1], param[2]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 4) {
+    x <- 1/(1 - evd::pgev(y, param[1], param[2], param[3]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 5) {
+    x <- 1/(1 - F.genpar(y, param[1], param[2], param[3]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 6) {
+    x <- 1/(1 - F.genlogis(y, param[1], param[2], param[3]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  if (distr.index == 7) {
+    x <- 1/(1 - nsRFA::F.gamma(y, param[1], param[2], param[3]))
+    empT <- 1/(1 - (seq(1:length(empq)) - 0.5)/(length(empq)))
+  }
+  plot(log(log(x)), y, xlim = c(0, log(log(1000))), xaxt = "n", 
+       ylim = c(0, xmax), main = "Return levels", xlab = "Return period (years)", 
+       ylab = "Flood discharge (m3/s)", type = "l", lwd = 2)
+  tix <- c(5, 10, 20, 50, 100, 200, 500)
+  axis(1, at = log(log(tix)), labels = tix)
+  points(log(log(empT)), empq, pch = 16, col = "blue")
+  grid(nx = 7, ny = 10, lwd = 2)
+}
+stations <- as.data.frame(ams_data$station)
+colnames(stations)[1] <- "Stations"
+stations <- stations %>% add_count(Stations)
+colnames(stations)[2] <- "years"
+stations <- dplyr::distinct(stations)
+
+testplotframe <- as.data.frame(testriver$station)
+colnames(testplotframe)[1] <- "Stations"
+testplotframe <- testplotframe %>% add_count(Stations)
+colnames(testplotframe)[2] <- "years"
+testplotframe <- dplyr::distinct(testplotframe)
+
+ad_values_gev <- data.frame(matrix(ncol = 3, nrow = 0))
+cnames <- c("Stations", "ADscore", "Years")
+colnames(ad_values_gev) <- cnames
+
+pot_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
 ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 
 ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
 
 #resampled_data <- ams_data[sample(nrow(ams_data)),]
 #group_by (resampled_data, station)
-testriver <- ams_data[ams_data$station == 2.11,]
+testriver <- ams_data[ams_data$station == "2.607", ]
+
+testplotframe <- as.data.frame(testriver$station)
+colnames(testplotframe)[1] <- "Stations"
+testplotframe <- testplotframe %>% add_count(Stations)
+colnames(testplotframe)[2] <- "years"
+testplotframe <- dplyr::distinct(testplotframe)
 
 set.seed(2661)
 resampled_data <- testriver[sample(nrow(testriver)),]
+#parest <- gp_Lmom(resampled_data$flood.1)
+parest2 <- gev_Lmom(testriver$daily_ams.1)
+#parest <- as.data.frame(parest)
+#param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
 
-parest <- gp_Lmom(resampled_data$flood.1)
-parest2 <- expLmom(resampled_data$flood.1)
-parest <- as.data.frame(parest)
-param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
-
-gofadtest <- gofad(resampled_data$flood.1,
-                   parest$estimate,
-                   distr = "gp",
+gofadtest <- gofad(testriver$daily_ams.1,
+                   parest2$estimate,
+                   distr = "gev",
                    test.stat=TRUE,
                    p.value=FALSE)
+#edit(goftest::ad.test)
+gofkstest <- gof_ks(testriver$daily_ams.1,
+                    parest2$estimate,
+                    distr = "gev",
+                    test.stat = TRUE,
+                    p.value = FALSE)
+#gofcstest <- gof_cs(resampled_data$flood.1,
+ #                   parest$estimate,
+  #                  distr = "gp")
 
-goftest <- data.frame(CS = NA, KS = NA, AD = gofadtest)
+goftest <- data.frame(CS = NA, KS = gofkstest, AD = gofadtest)
 
-plotall (resampled_data$flood.1,
-         GOF.list = goftest,
-         param = parest,
-         distr = "gp",
-         method = "ad")
+#plotall (testriver$daily_ams.1,
+#         GOF.list = goftest,
+#         param = parest2,
+#         distr = "gev",
+#         method = "ad")
+#plot_rlevel(testriver$flood.1, parest2$estimate, distr.index = 5)#useless, already in pot all function
+
+newRow <- data.frame(Station = testplotframe$Stations, ADscore = gofadtest,Years = testplotframe$years)
+ad_values_gev <- rbind(newRow, ad_values_gev)
+
+#plot(ad_values_gev$Years, ad_values_gev$ADscore)
