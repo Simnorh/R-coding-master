@@ -38,7 +38,7 @@ gp_Lmom <- function(dat) {
   }
 }
 
-#expLmom <- function(dat) {
+expLmom <- function(dat) {
   
   param <- list(estimate = c(NA, NA), se = c(NA, NA))
   if (length(dat) >= 1) {
