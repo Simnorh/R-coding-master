@@ -412,8 +412,8 @@ plotall (testriver$daily_ams.1,
          method = "ad")
 #plot_rlevel(testriver$flood.1, parest2$estimate, distr.index = 5)#useless, already in pot all function
 
-newRow <- data.frame(Station = testplotframe$Stations, ADscore = gofadtest,Years = testplotframe$years)
-ad_values_gev <- rbind(newRow, ad_values_gev)
-write.table (ad_values_gev, file = "ad_values_gev.txt", sep = "\ ")
+#newRow <- data.frame(Station = testplotframe$Stations, ADscore = gofadtest,Years = testplotframe$years)
+#ad_values_gev <- rbind(newRow, ad_values_gev)
+write.table (testriver, file = "error_station.txt", sep = "\ ")
 
 #plot(ad_values_gev$Years, ad_values_gev$ADscore)
