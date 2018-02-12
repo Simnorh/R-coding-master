@@ -572,3 +572,19 @@ plotall (resampled_data$daily_ams.1,
           param = parest,
           distr = "gp",
           method = "ad")
+
+
+#Lese data:
+mtt<-read.table('error_station.txt')
+
+#beregne l-moment
+ll <- Lmoments(pot_river[,5])
+
+#Beregne parametre i GP-fordelingen
+parameters <- par.genpar(ll[1],ll[2],ll[4])
+parametersdf <- as.data.frame(parameters)
+F_genpartest <- F.genpar(pot_river$flood.1, parameters$xi, parameters$alfa, parameters$k)
+F_genpartestdf <- as.data.frame(F_genpartest)
+
+#Kjøre AD-test
+ad.test(mtt[,5], null = "F.genpar", parameters$xi, parameters$alfa, parameters$k)

@@ -1,70 +1,63 @@
-exp_Lmom <- function(dat){
+exp_Lmom <- function(dat, threshold = NA){
   
   param <- list(estimate = c(NA, NA), se = c(NA, NA))
   if(length(dat) >= 1){
+    if(is.na(threshold)){
     dat.mom <- Lmoments(dat)
     param$estimate <- invisible(as.numeric(par.exp(dat.mom[1], dat.mom[2])))
     invisible(param)
-  } else {
+    } else{
+      dat2 <- dat-threshold
+      dat.Lmom <- Lmoments(dat2)
+      param$estimate[1] <- threshold
+      param$estimate[2] <- 2*dat.Lmom[2]
+      invisible(param)
+    }
+  }
+    else {
     print(paste("Warning:this station has les than ",1,"years of data, use another method", collapse = "", sep = ""))
   }
 }
 
-gp_Lmom <- function(dat) {
+gp_Lmom <- function(dat, threshold = NA) {
   
   param <- list(estimate = c(NA, NA, NA), se = c(NA, NA, NA))
   if (length(dat) >= 1) {
+    if (is.na(threshold)){
+      
     
     dat.Lmom <- Lmoments(dat)
-    
     
     fail_safe <- failwith(NULL, par.genpar)
     fitted.param <- fail_safe(dat.Lmom[1], dat.Lmom[2], dat.Lmom[4])
     
     if (is.null(fitted.param) == TRUE) {
-      print("Warning: the function par.GEV failed in gev_Lmom")
+      print("Warning: the function par.genpar failed in gp_Lmom")
       invisible(param)
     } else {
-      #fitted.param <- as.numeric(par.GEV(dat.mom[1], dat.mom[2], dat.mom[4]))
       # Creating the returning list
-      param$estimate <- c(fitted.param$xi, fitted.param$alfa, -fitted.param$k)
+      param$estimate <- c(fitted.param$xi, fitted.param$alfa, fitted.param$k)
       # Standard error is not yet implemented
       invisible(param)
     }
-  } else {
+    }else {
+      #put as a failsafe, the parameter estimation above sometimes gave location parameter lower than threshold
+      dat2<-dat-threshold
+      dat.Lmom <- Lmoments(dat2)
+      t2 = dat.Lmom[2] / dat.Lmom[1]
+      param$estimate[1] <- threshold
+      param$estimate[3] <- 2-1/t2
+      param$estimate[2] <- dat.Lmom[1]*(1/t2-1)
+      invisible(param)
+    }
+  }
+    
+    else {
     print(paste("Warning: this station has less than ", 1," years of data. Use another method!",
                 collapse = "", sep = ""))
     invisible(param)
   }
-}
-
-expLmom <- function(dat) {
-  
-  param <- list(estimate = c(NA, NA), se = c(NA, NA))
-  if (length(dat) >= 1) {
-    
-    dat.Lmom <- Lmoments(dat)
-    
-    
-    fail_safe <- failwith(NULL, par.exp)
-    fitted.param <- fail_safe(dat.Lmom[1], dat.Lmom[2])
-    
-    if (is.null(fitted.param) == TRUE) {
-      print("Warning: the function par.GEV failed in gev_Lmom")
-      invisible(param)
-    } else {
-      #fitted.param <- as.numeric(Lmom.exp(dat.mom[1], dat.mom[2]))
-      # Creating the returning list
-      param$estimate <- c(fitted.param$xi, fitted.param$alfa)
-      # Standard error is not yet implemented
-      invisible(param)
-    }
-  } else {
-    print(paste("Warning: this station has less than ", 1," years of data. Use another method!",
-                collapse = "", sep = ""))
-    invisible(param)
   }
-}
 
 gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
@@ -72,6 +65,7 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
   fail_safe <- failwith(NA, goftest::ad.test)
   
   if (distr == 'exp') {
+    dat <- dat[dat > param[1]]
     temp <- fail_safe(dat, "F.exp", param[1], param[2])
   }
   if (distr == 'gumbel') {
@@ -87,6 +81,7 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
     temp <- fail_safe(dat, "F.genlogis", param[1], param[2], param[3])
   }
   if (distr == 'gp') {
+    dat <- dat[dat > param[1]]
     temp <- fail_safe(dat, "F.genpar", param[1], param[2], param[3])
   }
   if (distr == 'pearson') {
@@ -350,11 +345,11 @@ plot_rlevel <- function (dat, param, distr.index = 1){
   points(log(log(empT)), empq, pch = 16, col = "blue")
   grid(nx = 7, ny = 10, lwd = 2)
 }
-#stations <- as.data.frame(ams_data$station)
-#colnames(stations)[1] <- "Stations"
-#stations <- stations %>% add_count(Stations)
-#colnames(stations)[2] <- "years"
-#stations <- dplyr::distinct(stations)
+stations <- as.data.frame(ams_data$station)
+colnames(stations)[1] <- "Stations"
+stations <- stations %>% add_count(Stations)
+colnames(stations)[2] <- "years"
+stations <- dplyr::distinct(stations)
 
 #testplotframe <- as.data.frame(testriver$station)
 #colnames(testplotframe)[1] <- "Stations"
@@ -367,13 +362,13 @@ plot_rlevel <- function (dat, param, distr.index = 1){
 #colnames(ad_values_gev) <- cnames
 
 pot_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
-#ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
+ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 
 pot_data$station <- paste(pot_data$regine, pot_data$main, sep=".")
 
 #resampled_data <- ams_data[sample(nrow(ams_data)),]
 #group_by (resampled_data, station)
-testriver <- pot_data[pot_data$station == "2.13", ]
+testriver <- pot_data[pot_data$station == "2.11",]
 
 #testplotframe <- as.data.frame(testriver$station)
 #colnames(testplotframe)[1] <- "Stations"
@@ -383,20 +378,21 @@ testriver <- pot_data[pot_data$station == "2.13", ]
 
 set.seed(2661)
 resampled_data <- testriver[sample(nrow(testriver)),]
-parest <- gp_Lmom(resampled_data$flood.1)
+parest <- gp_Lmom(testriver$flood.1, testriver$threshold[2])
 #parest2 <- gev_Lmom(testriver$daily_ams.1)
-#parest <- as.data.frame(parest)
+parestdf <- as.data.frame(parest)
 #param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
-
+F_genpartest <- F.exp(testriver$flood.1, parestdf$estimate[1], parestdf$estimate[2])
+F_genpartestdf <- as.data.frame(F_genpartest)
 gofadtest <- gofad(testriver$flood.1,
                    parest$estimate,
-                   distr = "gp",
+                   distr = "exp",
                    test.stat=TRUE,
                    p.value=FALSE)
 #edit(goftest::ad.test)
 gofkstest <- gof_ks(testriver$flood.1,
                     parest$estimate,
-                    distr = "gp",
+                    distr = "exp",
                     test.stat = TRUE,
                     p.value = FALSE)
 #gofcstest <- gof_cs(resampled_data$flood.1,
@@ -405,10 +401,10 @@ gofkstest <- gof_ks(testriver$flood.1,
 
 goftest <- data.frame(CS = NA, KS = gofkstest, AD = gofadtest)
 
-plotall (testriver$daily_ams.1,
+plotall (testriver$flood.1,
          GOF.list = goftest,
-         param = parest2,
-         distr = "gev",
+         param = parest,
+         distr = "exp",
          method = "ad")
 #plot_rlevel(testriver$flood.1, parest2$estimate, distr.index = 5)#useless, already in pot all function
 
