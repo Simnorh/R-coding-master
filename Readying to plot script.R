@@ -17,6 +17,12 @@ colnames(gumbel_gofvalues) <- cnames_gum
 pot_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
 ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 
+pot_years <- str_split_fixed(pot_data$date, "-", 3)
+cnames_years <- c("year", "month", "date")
+colnames(pot_years) <- cnames_years
+pot_years <- subset(pot_years, select =c(year))
+pot_data <- cbind(pot_data, pot_years)
+
 ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
 pot_data$station <- paste(pot_data$regine, pot_data$main, sep=".")
 
@@ -57,7 +63,7 @@ colnames(testplotframe)[3] <- "Floods per year"
 gevpar_pot <- gev_Lmom(pot_river$flood.1)
 gevpar_ams <- gev_Lmom(ams_river$daily_ams.1)
 
-gppar_pot <- gp_Lmom(pot_river$flood.1, threshold = pot_river$threshold[2])
+gppar_pot <- gp_Lmom(pot_river$flood.1, threshold = NA)
 gppar_ams <- gp_Lmom(ams_river$daily_ams.1, threshold = NA)
 
 gumpar_pot <- gumbel_Lmom(pot_river$flood.1)

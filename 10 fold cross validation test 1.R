@@ -240,7 +240,8 @@ library(nsRFA)
 library(FlomKart)
 library(evd)
 library(plotrix)
-
+install.packages("stringr")
+library(stringr)
 
 
 fittedtest <- f.GEV(x = resampled_data$daily_ams.1,
@@ -349,7 +350,6 @@ gp_Lmom <- function(dat) {
     invisible(param)
   }
 }
-
 
 gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
@@ -588,3 +588,48 @@ F_genpartestdf <- as.data.frame(F_genpartest)
 
 #Kjøre AD-test
 ad.test(mtt[,5], null = "F.genpar", parameters$xi, parameters$alfa, parameters$k)
+
+pot_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
+ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
+
+ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
+pot_data$station <- paste(pot_data$regine, pot_data$main, sep=".")
+
+ams_river <- ams_data[ams_data$station == "2.11", ]
+pot_river <- pot_data[pot_data$station == "2.11", ]
+
+pot_years <- str_split_fixed(pot_data$date, "-", 3)
+cnames_years <- c("year", "month", "date")
+colnames(pot_years) <- cnames_years
+pot_years <- subset(pot_years, select =c(year))
+pot_data <- cbind(pot_data, pot_years)
+
+porivergb <- dplyr::group_by(pot_river, year)
+set.seed(21)
+potriversample <- sample(pot_river$year, size = length(pot_river$threshold), replace = FALSE)
+potriversampledf <- as.data.frame(potriversample)
+potriversampledf <- dplyr::distinct(potriversampledf)
+potriversampledf
+n <- 10
+split(pot_river$year, sample(1:n, pot_river, nrow(pot_river), replace = FALSE, prob = NULL))
+
+set.seed(2641)
+sam_pot_river <- pot_river[sample(nrow(pot_river)),]
+
+kfold = 10
+dimriv <- dim(pot_river)[1]/10
+gs <- floor(dimriv)
+gs
+
+goftestcv = NULL
+
+for (i in 1:10){
+  i1 = (i-1)*gs + 1
+  i2 = i*gs
+  testdf <- sam_pot_river[sam_pot_river[,7] %in% potriversample[i1:i2], 5]
+  traindf<- sam_pot_river[!(sam_pot_river[,7] %in% potriversample[i1:i2]), 5] 
+  params <- exp_Lmom(traindf)
+  goftestcv[i] <- gofad(testdf, params$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+}
+  
