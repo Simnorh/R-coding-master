@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+rsconnect/*
+data_all.RData
+*~
+inst/doc
+data/*
+*.RData
