@@ -6,7 +6,7 @@ ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
 
 testriver <- ams_data[ams_data$station == 2.28,]
 
-resampled_data <- testriver[sample(nrow(testriver)),]
+resampled_data <- pot_river[sample(nrow(pot_river)),]
 
 library(caret)
 
@@ -16,7 +16,7 @@ library(caret)
 #str(cv10fold)
 
 set.seed(198)
-ind = createDataPartition(resampled_data$daily_ams.1, p = 9/10, list=FALSE)
+ind = createDataPartition(resampled_data$flood.1, p = 9/10, list=FALSE)
 str(ind)
 TrainDF <- resampled_data[ind,]
 TestDF <- resampled_data[-ind,]
@@ -32,7 +32,7 @@ parameterGrid <- expand.grid(mtry=c(1,2,3,4,5)) #check out video on this part ag
 #and now fit the model using train function
 #to know more about train function run ?train in console
 
-modelRandom <- train(TrainDF$daily_ams.1~TrainDF$daily_ams.1,
+modelRandom <- train(TrainDF$flood.1~TrainDF$flood.1,
                      data = TrainDF,
                      method = "rf",
                      trControl = ControlParameters,

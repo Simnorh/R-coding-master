@@ -23,7 +23,7 @@ testset <- resampled_data[-trainindex,]
 
 
 set.seed(196)
-cv10fold <- createFolds(resampled_data$daily_ams.1, k = 10)
+cv10fold <- createFolds(pot_river$year, k = 10)
 str(cv10fold)
 
 control1 <- trainControl(method = "cv", number = 10, index = cv10fold)
