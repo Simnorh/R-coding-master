@@ -1,3 +1,5 @@
+setwd("D:/Master/Thesis/Data")
+
 gev_gofvalues <- data.frame(matrix(ncol = 7, nrow = 0))
 cnames_gev <- c("Stations", "Years", "ADscore_ams","KSscore_ams","ADscore_pot","KSscore_pot", "Flood per year")
 colnames(gev_gofvalues) <- cnames_gev
@@ -32,8 +34,8 @@ stations <- stations %>% add_count(Stations)
 colnames(stations)[2] <- "years"
 stations <- dplyr::distinct(stations)
 
-ams_river <- ams_data[ams_data$station == "2.61", ]
-pot_river <- pot_data[pot_data$station == "2.61", ]
+ams_river <- ams_data[ams_data$station == "8.2", ]
+pot_river <- pot_data[pot_data$station == "8.2", ]
 
 testplotframe <- as.data.frame(ams_river$station)
 colnames(testplotframe)[1] <- "Stations"
@@ -67,30 +69,30 @@ gppar_pot <- gp_Lmom(pot_river$flood.1, threshold = NA)
 gppar_ams <- gp_Lmom(ams_river$daily_ams.1, threshold = NA)
 
 gumpar_pot <- gumbel_Lmom(pot_river$flood.1)
-gmpar_ams <- gumbel_Lmom(ams_river$daily_ams.1)
+gumpar_ams <- gumbel_Lmom(ams_river$daily_ams.1)
 
-exppar_pot <- exp_Lmom(pot_river$flood.1 , threshold = pot_river$threshold[2])
+exppar_pot <- exp_Lmom(pot_river$flood.1 , threshold = NA)
 exppar_ams <- exp_Lmom(ams_river$daily_ams.1, threshold = NA)
 
 #param_estimate <- gev_Lmom (resampled_data$daily_ams.1)
 
-AD_gevams <- gofad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gev", test.stat=TRUE, p.value=FALSE)
-AD_gevpot <- gofad(pot_river$flood.1, gevpar_pot$estimate, distr = "gev", test.stat=TRUE, p.value=FALSE)
+AD_gevams <- gof_ad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gev", test.stat=TRUE, p.value=FALSE)
+AD_gevpot <- gof_ad(pot_river$flood.1, gevpar_pot$estimate, distr = "gev", test.stat=TRUE, p.value=FALSE)
 KS_gevams <- gof_ks(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gev", test.stat = TRUE, p.value = FALSE)
 KS_gevpot <- gof_ks(pot_river$flood.1, gevpar_pot$estimate, distr = "gev", test.stat = TRUE, p.value = FALSE)
 
-AD_gpams <- gofad(ams_river$daily_ams.1, gppar_ams$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
-AD_gppot <- gofad(pot_river$flood.1, gppar_pot$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+AD_gpams <- gof_ad(ams_river$daily_ams.1, gppar_ams$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+AD_gppot <- gof_ad(pot_river$flood.1, gppar_pot$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
 KS_gpams <- gof_ks(ams_river$daily_ams.1, gppar_ams$estimate, distr = "gp", test.stat = TRUE, p.value = FALSE)
 KS_gppot <- gof_ks(pot_river$flood.1, gppar_pot$estimate, distr = "gp", test.stat = TRUE, p.value = FALSE)
 
-AD_gumams <- gofad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gumbel", test.stat=TRUE, p.value=FALSE)
-AD_gumpot <- gofad(pot_river$flood.1, gevpar_pot$estimate, distr = "gumbel", test.stat=TRUE, p.value=FALSE)
+AD_gumams <- gof_ad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gumbel", test.stat=TRUE, p.value=FALSE)
+AD_gumpot <- gof_ad(pot_river$flood.1, gevpar_pot$estimate, distr = "gumbel", test.stat=TRUE, p.value=FALSE)
 KS_gumams <- gof_ks(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "gumbel", test.stat = TRUE, p.value = FALSE)
 KS_gumpot <- gof_ks(pot_river$flood.1, gevpar_pot$estimate, distr = "gumbel", test.stat = TRUE, p.value = FALSE)
 
-AD_expams <- gofad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
-AD_exppot <- gofad(pot_river$flood.1, gevpar_pot$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
+AD_expams <- gof_ad(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
+AD_exppot <- gof_ad(pot_river$flood.1, gevpar_pot$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
 KS_expams <- gof_ks(ams_river$daily_ams.1, gevpar_ams$estimate, distr = "exp", test.stat = TRUE, p.value = FALSE)
 KS_exppot <- gof_ks(pot_river$flood.1, gevpar_pot$estimate, distr = "exp", test.stat = TRUE, p.value = FALSE)
 
@@ -111,11 +113,11 @@ AD_values_exp_pot <- data.frame(CS = NA, KS = KS_exppot, AD = AD_exppot)
 AD_values_exp_ams <- data.frame(CS = NA, KS = KS_expams, AD = AD_expams)
 #####Unødvendig?
 
-#plotall (testriver$daily_ams.1,
-#         GOF.list = goftest,
-#         param = parest2,
-#         distr = "gev",
-#         method = "ad")
+plot_all (pot_river$flood.1,
+         GOF.list = AD_values_gp_pot,
+         param = gppar_pot,
+         distr = "gp",
+         method = "ad")
 #plot_rlevel(testriver$flood.1, parest2$estimate, distr.index = 5)#useless, already in pot all function
 
 newRow_gev <- data.frame("Station" = testplotframe$Stations,"Years" = testplotframe$years, "ADscore_pot" = AD_gevpot, "KSscore_pot" = KS_gevpot, "ADscore_ams" = AD_gevams, "KSscore_ams" = KS_gevams, "Floods per year" = testplotframe$`Floods per year`)

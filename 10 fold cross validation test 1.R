@@ -215,7 +215,7 @@ MAE(pred = trainData, obs = testData, na.rm = TRUE)
 
 hist(resampled_data$daily_ams.1)
 
-
+install.packages("roxygen2")
 install.packages("devtools")
 library(devtools)
 install_github("NVE/fitdistrib")
@@ -322,6 +322,47 @@ plot_ecdf(resampled_data$daily_ams.1,
           distr = "gev")
 #plot density needs data as spesific type $
 #param cant have spesified column
+
+BS4NC_tryout <- function(dat, threshold, param, distr = "distr") {
+  
+  BS <- array(NA, dim = 6)
+  modelled.prob <- array(NA, dim = 6)
+  empirical <- array(NA, dim = 6)
+  Pu <- array(NA, dim = 6)
+  
+  #   m <- max(dat.full) * 0.8
+  #   threshold <- seq(m / 6, m, m / 6)
+  
+  if(distr == 'exp') {
+    modelled.prob <- F.exp(threshold, param[1], param[2])
+  }
+  if(distr == 'gumbel') {
+    modelled.prob <- pgumbel(threshold, param[1], param[2])  # Could be protected with "failwith"
+  }
+  if(distr == 'gamma') {
+    modelled.prob <- pgamma(threshold, param[1], rate = param[2])
+  }
+  if(distr == 'gev') {
+    modelled.prob <- evd::pgev(threshold, param[1], param[2], param[3])
+  }
+  if(distr == 'gl') {
+    modelled.prob <- F.genlogis(threshold, param[1], param[2], param[3])
+  }
+  if(distr == 'pearson') {
+    modelled.prob <- F.gamma(threshold, param[1], param[2], param[3])
+  }
+  if(distr == 'gp') {
+    modelled.prob <- F.genpar(threshold, param[1], param[2], param[3])
+  }
+  
+  for (z in 1:6) {
+    binary_vector <- as.integer(dat >= threshold[z]) # / length(dat) # * 30 otherwise, very small values
+    Pu[z] <- (1 - modelled.prob[z])
+    BS[z] <- mean( (Pu[z] - binary_vector)^2 )
+  }
+  invisible(BS)
+  
+}
 
 gp_Lmom <- function(dat) {
   
@@ -595,8 +636,8 @@ ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
 ams_data$station <- paste(ams_data$regine, ams_data$main, sep=".")
 pot_data$station <- paste(pot_data$regine, pot_data$main, sep=".")
 
-ams_river <- ams_data[ams_data$station == "2.11", ]
-pot_river <- pot_data[pot_data$station == "2.11", ]
+ams_river <- ams_data[ams_data$station == "2.32", ]
+pot_river <- pot_data[pot_data$station == "2.32", ]
 
 pot_years <- str_split_fixed(pot_data$date, "-", 3)
 cnames_years <- c("year", "month", "date")
@@ -605,31 +646,345 @@ pot_years <- subset(pot_years, select =c(year))
 pot_data <- cbind(pot_data, pot_years)
 
 porivergb <- dplyr::group_by(pot_river, year)
-set.seed(21)
+set.seed(1233)
 potriversample <- sample(pot_river$year, size = length(pot_river$threshold), replace = FALSE)
 potriversampledf <- as.data.frame(potriversample)
 potriversampledf <- dplyr::distinct(potriversampledf)
-potriversampledf
+
 n <- 10
 split(pot_river$year, sample(1:n, pot_river, nrow(pot_river), replace = FALSE, prob = NULL))
 
-set.seed(2641)
+set.seed(5121)
 sam_pot_river <- pot_river[sample(nrow(pot_river)),]
+set.seed(9871)
+sam_ams_river <- ams_river[sample(nrow(ams_river)),]
 
 kfold = 10
-dimriv <- dim(pot_river)[1]/10
-gs <- floor(dimriv)
-gs
+#dimriv <- dim(potriversampledf)[1]/kfold
+dimrivams <- dim(sam_ams_river)[1]/kfold
+#gs <- ceiling(dimriv)
+gs_ams <- floor(dimrivams)
+gs_ams
 
 goftestcv = NULL
+cv_pvalue = NULL
 
-for (i in 1:10){
+#for (i in 1:10){
   i1 = (i-1)*gs + 1
   i2 = i*gs
   testdf <- sam_pot_river[sam_pot_river[,7] %in% potriversample[i1:i2], 5]
   traindf<- sam_pot_river[!(sam_pot_river[,7] %in% potriversample[i1:i2]), 5] 
-  params <- exp_Lmom(traindf)
-  goftestcv[i] <- gofad(testdf, params$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
+  paramsgp <- gp_Lmom(traindf)
+  goftestcv[i] <- gofad(testdf, paramsgp$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
   cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gofad(testdf, paramsgp$estimate, distr = "gp", test.stat=FALSE, p.value=TRUE)
+  cv_average <- mean(cv_pvalue)
 }
+ 
+for (i in 1:kfold){
+  i1 = (i-1)*gs_ams + 1
+  i2 = i*gs_ams
+  testdf <- sam_ams_river[(i1:i2), 5]
+  traindf<- sam_ams_river[-(i1:i2), 5] 
+  paramsgp <- gumbel_Lmom(traindf)
+  goftestcv[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gumbel", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gumbel", test.stat=FALSE, p.value=TRUE)
+  cv_pvalue_av <- mean(cv_pvalue)
+} #gumbel
+
+bn <- as.vector(pot_river$year)
+bsize <- as.numeric(table(bn))
+bsizevec <- as.data.frame(bsize)
+ub <- unique(bn)
+blockdf <- cbind(ub, bsizevec)
+set.seed(145)
+rbn <- blockdf[sample(nrow(blockdf)),]
+gsize <- floor(length(bn)/kfold)
+bcum = cumsum(rbn$bsize)
+
+
+for (i in 1:kfold){
+  i1 = which.min(abs((i-1)*gsize+1-bcum))
+  i2 = which.min(abs(i*gsize-bcum))
+  testdf <- sam_pot_river[sam_pot_river[,7] %in% rbn$ub[i1:i2], 5]
+  traindf <- sam_pot_river[!(sam_pot_river[,7] %in% rbn$ub[i1:i2]), 5] 
+  paramsgp <- gp_Lmom(traindf)
+  goftestcv[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=FALSE, p.value=TRUE)
+  cv_pvalue_av <- mean(cv_pvalue)
+} #gp
+
+
+
+
+
+
+
+
+bsf <- BS4NC(ams_river$daily_ams.1, threshold = return_gum, param = gumpar_ams$estimate, distr = "gum")
+bsf
+return_p<- list(Periods = c(5, 10, 20))
+return_exp = NULL
+return_gum = NULL
+return_gp = NULL
+return_gev = NULL
+
+for (i in 1:3){
+return_gum[i] = gumpar_ams$estimate[1] + gumpar_ams$estimate[2]*(log(1-(1/return_p$Periods[i])))
   
+return_gp[i] = (gppar_pot$estimate[2]/gppar_pot$estimate[3])*(1-(-log(1-(1/return_p$Periods[i])/testplotframe$`Floods per year`))^gppar_pot$estimate[3])+pot_river$threshold[2]
+
+return_gev[i] = gevpar_ams$estimate[1] + gevpar_ams$estimate[2]/gevpar_ams$estimate[3]*(1-(-log(1-(1/return_p$Periods[i])))^gevpar_ams$estimate[3])
+
+return_exp[i] = exppar_pot$estimate[1]- exppar_pot$estimate[2]*(log(-(1/testplotframe$`Floods per year`)*log(1-(1/return_p$Periods[i]))))
+}
+return_gum
+return_gp
+return_gev
+return_exp
+
+quantdf <- list(Quantiles = c(5, 10, 20))
+quantdf <- data.frame(matrix(ncol = 1, c(0.8, 0.9, 0.95)))
+quant_name <- c("Quantiles")
+colnames(quantdf) <- quant_name
+
+#cummulative gp
+quantlist = NULL
+for(i in 1:3){
+    quantlist[i] = exp(-(1-gppar_pot$estimate[3]*
+                           ((quantdf$Quantiles[i]-(gppar_pot$estimate[2]/gppar_pot$estimate[3])*
+                               (1-(1/((testplotframe$`Floods per year`)^gppar_pot$estimate[3]))))/
+                              (gppar_pot$estimate[2]/((testplotframe$`Floods per year`)^gppar_pot$estimate[3]))))
+                       ^(1/(gppar_pot$estimate[3])))
+}
+quantlistgp = NULL
+quantlistexp = NULL
+for(i in 1:3){
+  quantlistgp[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-gppar_pot$estimate[3]*((return_gp[i]-gppar_pot$estimate[1])/gppar_pot$estimate[2]))^(1/gppar_pot$estimate[3]))))
+  quantlistexp[i] = exp(-testplotframe$`Floods per year`*(1-(1-exp(-((return_exp[i]-exppar_pot$estimate[1])/exppar_pot$estimate[2])))))
+  #quantlistgpaa[i] = exp(-(testplotframe$`Floods per year`)*(1- gppar_pot$estimate[3]*(return_gp[i]/(gppar_pot$estimate[2])))^(1/gppar_pot$estimate[3]))
+  #quantlistexp[i] = exp(-(testplotframe$`Floods per year`)*(1- (1-exp(-((return_exp[i] - exppar_pot$estimate[1])/exppar_pot$estimate[2])))))
+}
+quantlistgp
+quantlistexp
+  #cummulative exp
+quantlistexp = NULL
+for(i in 1:3){
+  quantlistexp[i] = exp(-(-((quantdf$Quantiles[i]-exppar_pot$estimate[1])/exppar_pot$estimate)))
+}
+#
+##
+###
+####
+#####Quantile and brier score attempt
+####
+###
+##
+#
+set.seed(5121)
+sam_pot_river <- pot_river[sample(nrow(pot_river)),]
+set.seed(9871)
+sam_ams_river <- ams_river[sample(nrow(ams_river)),]
+
+kfold = 10
+#dimriv <- dim(potriversampledf)[1]/kfold
+dimrivams <- dim(sam_ams_river)[1]/kfold
+#gs <- ceiling(dimriv)
+gs_ams <- floor(dimrivams)
+gs_ams
+
+goftestcv = NULL
+cv_pvalue = NULL
+
+bn <- as.vector(pot_river$year)
+bsize <- as.numeric(table(bn))
+bsizevec <- as.data.frame(bsize)
+ub <- unique(bn)
+blockdf <- cbind(ub, bsizevec)
+set.seed(145)
+rbn <- blockdf[sample(nrow(blockdf)),]
+gsize <- floor(length(bn)/kfold)
+bcum = cumsum(rbn$bsize)
+
+return_gp_5 = NULL
+return_gp_10= NULL
+return_gp_20 = NULL
+quantlistgp_5 = NULL
+quantlistgp_10 = NULL
+quantlistgp_20 = NULL
+bsgp_5 = NULL
+bsgp_10 = NULL
+bsgp_20 = NULL
+qsgp_5 = NULL
+qsgp_10 = NULL
+qsgp_20 = NULL
+return_exp_5 = NULL
+return_exp_10= NULL
+return_exp_20 = NULL
+quantlistexp_5 = NULL
+quantlistexp_10 = NULL
+quantlistexp_20 = NULL
+bsexp_5 = NULL
+bsexp_10 = NULL
+bsexp_20 = NULL
+qsexp_5 = NULL
+qsexp_10 = NULL
+qsexp_20 = NULL
+return_gev_5 = NULL
+return_gev_10= NULL
+return_gev_20 = NULL
+bsgev_5 = NULL
+bsgev_10 = NULL
+bsgev_20 = NULL
+qsgev_5 = NULL
+qsgev_10 = NULL
+qsgev_20 = NULL
+
+for (i in 1:kfold){
+  i1 = which.min(abs((i-1)*gsize+1-bcum))
+  i2 = which.min(abs(i*gsize-bcum))
+  testdf <- sam_pot_river[sam_pot_river[,7] %in% rbn$ub[i1:i2], 5]
+  traindf <- sam_pot_river[!(sam_pot_river[,7] %in% rbn$ub[i1:i2]), 5] 
+  paramsgp <- gp_Lmom(traindf)
+  goftestcv[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=FALSE, p.value=TRUE)
+  cv_pvalue_av <- mean(cv_pvalue)
+  
+  return_gp_5[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[1])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  quantlistgp_5[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_5-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gp_10[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[2])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  quantlistgp_10[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_10-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gp_20[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[3])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  quantlistgp_20[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_20-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  returngp5_av <- mean(return_gp_5)
+  returngp10_av <- mean(return_gp_10)
+  returngp20_av <- mean(return_gp_20)
+  quantlistgp5_av <- mean(quantlistgp_5)
+  quantlistgp10_av <- mean(quantlistgp_10)
+  quantlistgp20_av <- mean(quantlistgp_20)
+  
+  bsgp_5[i] <- BS4NC_tryout(testdf, threshold = return_gp_5[i], param = paramsgp$estimate, distr = "gp")
+  bsgp_10[i] <- BS4NC_tryout(testdf, threshold = return_gp_10[i], param = paramsgp$estimate, distr = "gp")
+  bsgp_20[i] <- BS4NC_tryout(testdf, threshold = return_gp_20[i], param = paramsgp$estimate, distr = "gp")
+  
+  qsgp_5[i] <- QS4NC(testdf, r.levels = return_gp_5[i], r.periods = return_p$Periods[1])
+  qsgp_10[i] <- QS4NC(testdf, r.levels = return_gp_10[i], r.periods = return_p$Periods[2])
+  qsgp_20[i] <- QS4NC(testdf, r.levels = return_gp_20[i], r.periods = return_p$Periods[3])
+  
+  qsgp5_av <- mean(qsgp_5)
+  qsgp10_av <- mean(qsgp_10)
+  qsgp20_av <- mean(qsgp_20)
+  bsgp5_av <- mean(bsgp_5)
+  bsgp10_av <- mean(bsgp_10)
+  bsgp20_av <- mean(bsgp_20)
+}#gp
+bsgp5_av
+bsgp10_av
+bsgp20_av
+qsgp5_av
+qsgp10_av
+qsgp20_av
+
+for (i in 1:kfold){
+  i1 = (i-1)*gs_ams + 1
+  i2 = i*gs_ams
+  testdf <- sam_ams_river[(i1:i2), 5]
+  traindf<- sam_ams_river[-(i1:i2), 5] 
+  paramsgev <- gev_Lmom(traindf)
+  goftestcv[i] <- gof_ad(testdf, paramsgev$estimate, distr = "gev", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gof_ad(testdf, paramsgev$estimate, distr = "gev", test.stat=FALSE, p.value=TRUE)
+  cv_pvalue_av <- mean(cv_pvalue)
+
+  return_gev_5[i] = paramsgev$estimate[1] + paramsgev$estimate[2]/paramsgev$estimate[3]*(1-(-log(1-(1/return_p$Periods[1])))^paramsgev$estimate[3])
+  #quantlistgp_5[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_5-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gev_10[i] = paramsgev$estimate[1] + paramsgev$estimate[2]/paramsgev$estimate[3]*(1-(-log(1-(1/return_p$Periods[2])))^paramsgev$estimate[3])
+  #quantlistgp_10[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_10-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gev_20[i] = paramsgev$estimate[1] + paramsgev$estimate[2]/paramsgev$estimate[3]*(1-(-log(1-(1/return_p$Periods[3])))^paramsgev$estimate[3])
+  #quantlistgp_20[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_20-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  returngev5_av <- mean(return_gev_5)
+  returngev10_av <- mean(return_gev_10)
+  returngev20_av <- mean(return_gev_20)
+  #quantlistgp5_av <- mean(quantlistgp_5)
+  #quantlistgp10_av <- mean(quantlistgp_10)
+  #quantlistgp20_av <- mean(quantlistgp_20)
+  
+  bsgev_5[i] <- BS4NC_tryout(testdf, threshold = return_gev_5[i], param = paramsgev$estimate, distr = "gev")
+  bsgev_10[i] <- BS4NC_tryout(testdf, threshold = return_gev_10[i], param = paramsgev$estimate, distr = "gev")
+  bsgev_20[i] <- BS4NC_tryout(testdf, threshold = return_gev_20[i], param = paramsgev$estimate, distr = "gev")
+  
+  qsgev_5[i] <- QS4NC(testdf, r.levels = return_gev_5[i], r.periods = return_p$Periods[1])
+  qsgev_10[i] <- QS4NC(testdf, r.levels = return_gev_10[i], r.periods = return_p$Periods[2])
+  qsgev_20[i] <- QS4NC(testdf, r.levels = return_gev_20[i], r.periods = return_p$Periods[3])
+  
+  qsgev5_av <- mean(qsgev_5)
+  qsgev10_av <- mean(qsgev_10)
+  qsgev20_av <- mean(qsgev_20)
+  bsgev5_av <- mean(bsgev_5)
+  bsgev10_av <- mean(bsgev_10)
+  bsgev20_av <- mean(bsgev_20)
+}#gev
+bsgev5_av
+bsgev10_av
+bsgev20_av
+qsgev5_av
+qsgev10_av
+qsgev20_av
+
+for (i in 1:kfold){
+  i1 = which.min(abs((i-1)*gsize+1-bcum))
+  i2 = which.min(abs(i*gsize-bcum))
+  testdf <- sam_pot_river[sam_pot_river[,7] %in% rbn$ub[i1:i2], 5]
+  traindf <- sam_pot_river[!(sam_pot_river[,7] %in% rbn$ub[i1:i2]), 5] 
+  paramsexp <- exp_Lmom(traindf)
+  goftestcv[i] <- gof_ad(testdf, paramsexp$estimate, distr = "exp", test.stat=TRUE, p.value=FALSE)
+  cv_average <- mean(goftestcv)
+  cv_pvalue[i] <- gof_ad(testdf, paramsexp$estimate, distr = "exp", test.stat=FALSE, p.value=TRUE)
+  cv_pvalue_av <- mean(cv_pvalue)
+  
+  return_exp_5[i] = paramsexp$estimate[1]- paramsexp$estimate[2]*(log(-(1/testplotframe$`Floods per year`)*log(1-(1/return_p$Periods[1]))))
+  quantlistexp_5[i] = exp(-testplotframe$`Floods per year`*(1-(1-exp(-((return_exp_5[i]-paramsexp$estimate[1])/paramsexp$estimate[2])))))
+  
+  return_exp_10[i] = paramsexp$estimate[1]- paramsexp$estimate[2]*(log(-(1/testplotframe$`Floods per year`)*log(1-(1/return_p$Periods[2])))) 
+  quantlistexp_10[i] = exp(-testplotframe$`Floods per year`*(1-(1-exp(-((return_exp_10[i]-paramsexp$estimate[1])/paramsexp$estimate[2])))))
+  
+  return_exp_20[i] = paramsexp$estimate[1]- paramsexp$estimate[2]*(log(-(1/testplotframe$`Floods per year`)*log(1-(1/return_p$Periods[3]))))
+  quantlistexp_20[i] = exp(-testplotframe$`Floods per year`*(1-(1-exp(-((return_exp_20[i]-paramsexp$estimate[1])/paramsexp$estimate[2])))))
+  
+  returnexp5_av <- mean(return_exp_5)
+  returnexp10_av <- mean(return_exp_10)
+  returnexp20_av <- mean(return_exp_20)
+  quantlistexp5_av <- mean(quantlistexp_5)
+  quantlistexp10_av <- mean(quantlistexp_10)
+  quantlistexp20_av <- mean(quantlistexp_20)
+  
+  bsexp_5[i] <- BS4NC_tryout(testdf, threshold = return_exp_5[i], param = paramsexp$estimate, distr = "exp")
+  bsexp_10[i] <- BS4NC_tryout(testdf, threshold = return_exp_10[i], param = paramsexp$estimate, distr = "exp")
+  bsexp_20[i] <- BS4NC_tryout(testdf, threshold = return_exp_20[i], param = paramsexp$estimate, distr = "exp")
+  
+  qsexp_5[i] <- QS4NC(testdf, r.levels = return_exp_5[i], r.periods = return_p$Periods[1])
+  qsexp_10[i] <- QS4NC(testdf, r.levels = return_exp_10[i], r.periods = return_p$Periods[2])
+  qsexp_20[i] <- QS4NC(testdf, r.levels = return_exp_20[i], r.periods = return_p$Periods[3])
+  
+  qsexp5_av <- mean(qsexp_5)
+  qsexp10_av <- mean(qsexp_10)
+  qsexp20_av <- mean(qsexp_20)
+  bsexp5_av <- mean(bsexp_5)
+  bsexp10_av <- mean(bsexp_10)
+  bsexp20_av <- mean(bsexp_20)
+}#exp
+bsexp5_av
+bsexp10_av
+bsexp20_av
+qsexp5_av
+qsexp10_av
+qsexp20_av

@@ -52,3 +52,6 @@ predictions <- predict(modelRandom, newdata = TestDF)
 
 t <- table(prediction = predictions, actual=TestDF$daily_ams.1)
 t
+
+install.packages("mev")
+library(mev)

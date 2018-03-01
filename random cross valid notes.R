@@ -54,3 +54,21 @@ model2
 
 
 
+install.packages("lme4")
+install.packages("extRemes")
+library(lme4)
+library(extRemes)
+
+pot_evdtest <- fevd(pot_river$flood.1, method = "Lmoments", type = "GP", threshold = pot_river$threshold[2])
+
+
+
+rl_values <- return.level(pot_evdtest, conf = 0.50,
+                          return.period = c(10, 20, 50, 75, 100))
+rl_values
+nameslist <- list.files(path="C:\\Users\\Simen\\Documents\\test mappe r", recursive=T, pattern="*.txt")
+text.files <- list.files(path="C:\\Users\\Simen\\Documents\\test mappe r", recursive=T, pattern="*.txt", full.names = T)
+readDatFile <- function(f) { dat.fl <- readLines(f) }
+text.data <- sapply(text.files, readDatFile)
+names(text.data) <- nameslist
+list2env(text.data, envir= )

@@ -56,8 +56,8 @@ gp_Lmom <- function(dat, threshold = NA) {
     print(paste("Warning: this station has less than ", 1," years of data. Use another method!",
                 collapse = "", sep = ""))
     invisible(param)
-  }
-  }
+    }
+}
 
 gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
