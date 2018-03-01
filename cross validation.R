@@ -76,9 +76,9 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
   invisible(AD)
 }
 
-
 pot_data <-read.table("pot_and_fgp.txt",header=T,sep="\ ")
 ams_data <-read.table("ams_and_fgp.txt",header=T,sep="\ ")
+
 
 pot_years <- str_split_fixed(pot_data$date, "-", 3)
 cnames_years <- c("year", "month", "date")
