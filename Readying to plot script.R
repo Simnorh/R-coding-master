@@ -34,8 +34,8 @@ stations <- stations %>% add_count(Stations)
 colnames(stations)[2] <- "years"
 stations <- dplyr::distinct(stations)
 
-ams_river <- ams_data[ams_data$station == "8.2", ]
-pot_river <- pot_data[pot_data$station == "8.2", ]
+ams_river <- ams_data[ams_data$station == "22.4", ]
+pot_river <- pot_data[pot_data$station == "22.4", ]
 
 testplotframe <- as.data.frame(ams_river$station)
 colnames(testplotframe)[1] <- "Stations"
