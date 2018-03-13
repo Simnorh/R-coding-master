@@ -1053,3 +1053,4 @@ qsgum5_av
 qsgum10_av
 qsgum20_av
 
+stations30 <- stations[!(stations$years < 30),]
