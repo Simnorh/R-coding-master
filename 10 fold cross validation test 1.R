@@ -1054,3 +1054,219 @@ qsgum10_av
 qsgum20_av
 
 stations30 <- stations[!(stations$years < 30),]
+
+
+for (i in 1:kfold){
+  i1 = which.min(abs((i-1)*gsize+1-bcum))
+  i2 = which.min(abs(i*gsize-bcum))
+  testdf <- sam_pot_river[sam_pot_river[,7] %in% rbn$ub[i1:i2], 5]
+  traindf <- sam_pot_river[!(sam_pot_river[,7] %in% rbn$ub[i1:i2]), 5]
+  traindfyears <- sam_pot_river[!(sam_pot_river[,7] %in% rbn$ub[i1:i2]), 7]
+  paramsgp <- gp_Lmom(traindf, threshold = NA)
+  cv_gp_ad[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+  cva_gp_ad <- mean(cv_gp_ad)
+  cv_gp_pad[i] <- gof_ad(testdf, paramsgp$estimate, distr = "gp", test.stat=FALSE, p.value=TRUE)
+  cvp_gp_ad <- mean(cv_gp_pad)
+  
+  cv_gp_ks[i] <- gof_ks(testdf, paramsgp$estimate, distr = "gp", test.stat=TRUE, p.value=FALSE)
+  cva_gp_ks <- mean(cv_gp_ks)
+  cv_gp_pks[i] <- gof_ks(testdf, paramsgp$estimate, distr = "gp", test.stat=FALSE, p.value=TRUE)
+  cvp_gp_ks <- mean(cv_gp_pks)
+  
+  return_gp_5[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[1])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  #quantlistgp_5[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_5-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gp_10[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[2])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  #quantlistgp_10[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_10-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  return_gp_20[i] = (paramsgp$estimate[2]/paramsgp$estimate[3])*(1-(-log(1-(1/return_p$Periods[3])/testplotframe$`Floods per year`))^paramsgp$estimate[3])+pot_river$threshold[2]
+  #quantlistgp_20[i] = exp(-testplotframe$`Floods per year`*(1-(1-(1-paramsgp$estimate[3]*((return_gp_20-paramsgp$estimate[1])/paramsgp$estimate[2]))^(1/paramsgp$estimate[3]))))
+  
+  returngp5_av <- mean(return_gp_5)
+  returngp10_av <- mean(return_gp_10)
+  returngp20_av <- mean(return_gp_20)
+  quantlistgp5_av <- mean(quantlistgp_5)
+  quantlistgp10_av <- mean(quantlistgp_10)
+  quantlistgp20_av <- mean(quantlistgp_20)
+  
+  bsgp_5[i] <- BS4NC_tryout(testdf, threshold = return_gp_5[i], param = paramsgp$estimate, distr = "gp")
+  bsgp_10[i] <- BS4NC_tryout(testdf, threshold = return_gp_10[i], param = paramsgp$estimate, distr = "gp")
+  bsgp_20[i] <- BS4NC_tryout(testdf, threshold = return_gp_20[i], param = paramsgp$estimate, distr = "gp")
+  
+  qsgp_5[i] <- QS4NC(testdf, r.levels = return_gp_5[i], r.periods = return_p$Periods[1])
+  qsgp_10[i] <- QS4NC(testdf, r.levels = return_gp_10[i], r.periods = return_p$Periods[2])
+  qsgp_20[i] <- QS4NC(testdf, r.levels = return_gp_20[i], r.periods = return_p$Periods[3])
+  
+  qsgp5_av <- mean(qsgp_5)
+  qsgp10_av <- mean(qsgp_10)
+  qsgp20_av <- mean(qsgp_20)
+  bsgp5_av <- mean(bsgp_5)
+  bsgp10_av <- mean(bsgp_10)
+  bsgp20_av <- mean(bsgp_20)
+  
+  i1ams = (i-1)*gs_ams + 1
+  i2ams = i*gs_ams
+  specvalues <- sam_ams_river[sam_ams_river$daily_ams.1 < sam_pot_river$threshold[2], ]
+  specvect <- as.vector(specvalues$daily_ams.1)
+  testdfams <- sam_ams_river[!(sam_ams_river[,8] %in% traindfyears), 5]
+  testdfamstry <- append(testdfams, speclist[4], after = length(testdfams))
+  testdfamstryomit <- testdfamstry[!is.na(testdfamstry)]
+  testdfams <- sam_ams_river[(i1:i2), 5]
+  traindfams<- sam_ams_river[-(i1:i2), 5]
+  
+  amsbsgp_5[i] <- BS4NC_tryout(testdfams, threshold = return_gp_5[i], param = paramsgp$estimate, distr = "gp")
+  amsbsgp_10[i] <- BS4NC_tryout(testdfams, threshold = return_gp_10[i], param = paramsgp$estimate, distr = "gp")
+  amsbsgp_20[i] <- BS4NC_tryout(testdfams, threshold = return_gp_20[i], param = paramsgp$estimate, distr = "gp")
+  
+  amsqsgp_5[i] <- QS4NC(testdfams, r.levels = return_gp_5[i], r.periods = return_p$Periods[1])
+  amsqsgp_10[i] <- QS4NC(testdfams, r.levels = return_gp_10[i], r.periods = return_p$Periods[2])
+  amsqsgp_20[i] <- QS4NC(testdfams, r.levels = return_gp_20[i], r.periods = return_p$Periods[3])
+  
+  amsqsgp5_av <- mean(amsqsgp_5)
+  amsqsgp10_av <- mean(amsqsgp_10)
+  amsqsgp20_av <- mean(amsqsgp_20)
+  amsbsgp5_av <- mean(amsbsgp_5)
+  amsbsgp10_av <- mean(amsbsgp_10)
+  amsbsgp20_av <- mean(amsbsgp_20)
+}#gp
+
+rs_gev5 = NULL
+rs_gum5 = NULL
+rs_exp5 = NULL
+rs_gp5 = NULL
+rs_gev10 = NULL
+rs_gum10 = NULL
+rs_exp10 = NULL
+rs_gp10 = NULL
+rs_gev20 = NULL
+rs_gum20 = NULL
+rs_exp20 = NULL
+rs_gp20 = NULL
+rs_gev50 = NULL
+rs_gum50 = NULL
+rs_exp50 = NULL
+rs_gp50 = NULL
+rs_gev100 = NULL
+rs_gum100 = NULL
+rs_exp100 = NULL
+rs_gp100 = NULL
+rs_gev200 = NULL
+rs_gum200 = NULL
+rs_exp200 = NULL
+rs_gp200 = NULL
+
+for (i in 1:length(return_l[,1])){
+  rs_gev5[i] <- return_l$X5.GEV[i]/return_l$X5.GP[i]
+  rs_gum5[i] <- return_l$X5.GUM[i]/return_l$X5.GP[i]
+  rs_exp5[i] <- return_l$X5.EXP[i]/return_l$X5.GP[i]
+  rs_gp5[i] <- return_l$X5.GP[i]/return_l$X5.GP[i]
+  
+  rs_gev10[i] <- return_l$X10.GEV[i]/return_l$X10.GP[i]
+  rs_gum10[i] <- return_l$X10.GUM[i]/return_l$X10.GP[i]
+  rs_exp10[i] <- return_l$X10.EXP[i]/return_l$X10.GP[i]
+  rs_gp10[i] <- return_l$X10.GP[i]/return_l$X10.GP[i]
+  
+  rs_gev20[i] <- return_l$X20.GEV[i]/return_l$X20.GP[i]
+  rs_gum20[i] <- return_l$X20.GUM[i]/return_l$X20.GP[i]
+  rs_exp20[i] <- return_l$X20.EXP[i]/return_l$X20.GP[i]
+  rs_gp20[i] <- return_l$X20.GP[i]/return_l$X20.GP[i]
+  
+  rs_gev50[i] <- return_l$X50.GEV[i]/return_l$X50.GP[i]
+  rs_gum50[i] <- return_l$X50.GUM[i]/return_l$X50.GP[i]
+  rs_exp50[i] <- return_l$X50.EXP[i]/return_l$X50.GP[i]
+  rs_gp50[i] <- return_l$X50.GP[i]/return_l$X50.GP[i]
+  
+  rs_gev100[i] <- return_l$X100.GEV[i]/return_l$X100.GP[i]
+  rs_gum100[i] <- return_l$X100.GUM[i]/return_l$X100.GP[i]
+  rs_exp100[i] <- return_l$X100.EXP[i]/return_l$X100.GP[i]
+  rs_gp100[i] <- return_l$X100.GP[i]/return_l$X100.GP[i]
+  
+  rs_gev200[i] <- return_l$X200.GEV[i]/return_l$X200.GP[i]
+  rs_gum200[i] <- return_l$X200.GUM[i]/return_l$X200.GP[i]
+  rs_exp200[i] <- return_l$X200.EXP[i]/return_l$X200.GP[i]
+  rs_gp200[i] <- return_l$X200.GP[i]/return_l$X200.GP[i]
+}
+
+rs_gev5a <- mean(rs_gev5)
+rs_gum5a <- mean(rs_gum5)
+rs_exp5a <- mean(rs_exp5)
+rs_gp5a <- mean(rs_gp5)
+rs_gev10a <- mean(rs_gev10)
+rs_gum10a <- mean(rs_gum10)
+rs_exp10a <- mean(rs_exp10)
+rs_gp10a <- mean(rs_gp10)
+rs_gev20a <- mean(rs_gev20)
+rs_gum20a <- mean(rs_gum20)
+rs_exp20a <- mean(rs_exp20)
+rs_gp20a <- mean(rs_gp20)
+rs_gev50a <- mean(rs_gev50)
+rs_gum50a <- mean(rs_gum50)
+rs_exp50a <- mean(rs_exp50)
+rs_gp50a <- mean(rs_gp50)
+rs_gev100a <- mean(rs_gev100)
+rs_gum100a <- mean(rs_gum100)
+rs_exp100a <- mean(rs_exp100)
+rs_gp100a <- mean(rs_gp100)
+rs_gev200a <- mean(rs_gev200)
+rs_gum200a <- mean(rs_gum200)
+rs_exp200a <- mean(rs_exp200)
+rs_gp200a <- mean(rs_gp200)
+
+
+return_rs <- data.frame(matrix(ncol = 24, nrow = 0))
+
+Relationship_to_GP <- as.character(c("GEV 5 year","GUM 5 year","EXP 5 year","GP 5 year","GEV 10 year","GUM 10 year",
+                        "EXP 10 year","GP 10 year","GEV 20 year","GUM 20 year","EXP 20 year","GP 20 year",
+                        "GEV 50 year","GUM 50 year","EXP 50 year","GP 50 year",
+                        "GEV 100 year","GUM 100 year","EXP 100 year","GP 100 year",
+                        "GEV 200 year","GUM 200 year","EXP 200 year","GP 200 year"))
+GEV_5_year <- (rs_gev5)
+GUM_5_year <- (rs_gum5)
+EXP_5_year <- (rs_exp5)
+GP_5_year <- (rs_gp5)
+
+GEV_10_year <- (rs_gev10)
+GUM_10_year <- (rs_gum10)
+EXP_10_year <- (rs_exp10)
+GP_10_year <- (rs_gp10)
+
+GEV_20_year <- (rs_gev20)
+GUM_20_year <- (rs_gum20)
+EXP_20_year <- (rs_exp20)
+GP_20_year <- (rs_gp20)
+GEV_50_year <- (rs_gev50)
+GUM_50_year <- (rs_gum50)
+EXP_50_year <- (rs_exp50)
+GP_50_year <- (rs_gp50)
+GEV_100_year <- (rs_gev100)
+GUM_100_year <- (rs_gum100)
+EXP_100_year <- (rs_exp100)
+GP_100_year <- (rs_gp100)
+GEV_200_year <- (rs_gev200)
+GUM_200_year <- (rs_gum200)
+EXP_200_year <- (rs_exp200)
+GP_200_year <- (rs_gp200)
+
+
+return_rs <- cbind(GEV_5_year, GUM_5_year, EXP_5_year, GP_5_year, 
+                   GEV_10_year, GUM_10_year, EXP_10_year, GP_10_year,
+                   GEV_20_year, GUM_20_year, EXP_20_year, GP_20_year,
+                   GEV_50_year, GUM_50_year, EXP_50_year, GP_50_year,
+                   GEV_100_year, GUM_100_year, EXP_100_year, GP_100_year,
+                   GEV_200_year, GUM_200_year, EXP_200_year, GP_200_year)
+
+
+values <- c(rs_gev5a, rs_gum5a, rs_exp5a, rs_gp5a, rs_gev10a, rs_gum10a,
+            rs_exp10a, rs_gp10a, rs_gev20a, rs_gum20a, rs_exp20a, rs_gp20a,
+            rs_gev50a, rs_gum50a, rs_exp50a, rs_gp50a,
+            rs_gev100a, rs_gum100a, rs_exp100a, rs_gp100a,
+            rs_gev200a, rs_gum200a, rs_exp200a, rs_gp200a)
+return_rs <- cbind(Relationship_to_GP, values)
+colnames(return_rs) <- c("Estimation", "Relationship value")
+return_rs <- as.data.frame(return_rs)
+return_rs$Estimation <- as.character(return_rs$Estimation)
+return_rs$`Relationship value` <- as.numeric(return_rs$`Relationship value`)
+boxplot(return_rs$`Relationship value`~return_rs$Estimation, ylim= c(0.75, 1.50))
+
+boxplot(return_rs, ylim= c(0.75, 1.4))
+

@@ -19,7 +19,7 @@ exp_Lmom <- function(dat, threshold = NA){
   }
 }
 
-gp_Lmom <- function(dat, threshold = NA) {
+gp_Lmom1 <- function(dat, threshold = NA) {
   
   param <- list(estimate = c(NA, NA, NA), se = c(NA, NA, NA))
   if (length(dat) >= 1) {
@@ -28,7 +28,7 @@ gp_Lmom <- function(dat, threshold = NA) {
     
     dat.Lmom <- Lmoments(dat)
     
-    fail_safe <- failwith(NULL, par.genpar)
+    fail_safe <- failwith(NA, par.genpar)
     fitted.param <- fail_safe(dat.Lmom[1], dat.Lmom[2], dat.Lmom[4])
     
     if (is.null(fitted.param) == TRUE) {
@@ -62,10 +62,12 @@ gp_Lmom <- function(dat, threshold = NA) {
 gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
   AD <- NA 
-  fail_safe <- failwith(NA, goftest::ad.test)
+  fail_safe <- purrr::possibly(goftest::ad.test, NA)
   
   if (distr == 'exp') {
-    dat <- dat[dat > param[1]]
+    temp <- fail_safe(dat, "F.exp", param[2])
+  }
+  if (distr == 'exp2') {
     temp <- fail_safe(dat, "F.exp", param[1], param[2])
   }
   if (distr == 'gumbel') {
@@ -80,8 +82,10 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
   if (distr == 'gl') {
     temp <- fail_safe(dat, "F.genlogis", param[1], param[2], param[3])
   }
-  if (distr == 'gp') {
-    dat <- dat[dat > param[1]]
+  if (distr == 'gp2') {
+    temp <- fail_safe(dat, "F.genpar", param[2], param[3])
+  }
+  if (distr == 'gp3') {
     temp <- fail_safe(dat, "F.genpar", param[1], param[2], param[3])
   }
   if (distr == 'pearson') {
@@ -97,21 +101,27 @@ gofad <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALS
   invisible(AD)
 }
 
-gof_ks <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
+gofks <- function(dat, param, distr = "distr", test.stat = TRUE , p.value = FALSE) {
   
   KS <- NA
-  fail_safe <- failwith(NA, stats::ks.test)
+  fail_safe <- purrr::possibly(stats::ks.test, NA)
   
   if (distr == 'gumbel') {
     temp <- fail_safe(dat, "pgumbel", param[1], param[2])
   }
   if (distr == 'exp') {
+    temp <- fail_safe(dat, "F.exp", param[2])
+  }
+  if (distr == 'exp2') {
     temp <- fail_safe(dat, "F.exp", param[1], param[2])
   }
   if (distr == 'gamma') {
     temp <- fail_safe(dat, "pgamma", param[1], rate = param[2])
   }
-  if (distr == 'gp') {
+  if (distr == 'gp2') {
+    temp <- fail_safe(dat, "F.genpar", param[2], param[3])
+  }
+  if (distr == 'gp3') {
     temp <- fail_safe(dat, "F.genpar", param[1], param[2], param[3])
   }
   if (distr == 'gev') {
@@ -413,3 +423,255 @@ plotall (testriver$flood.1,
 write.table (testriver, file = "error_station.txt", sep = "\ ")
 
 #plot(ad_values_gev$Years, ad_values_gev$ADscore)
+
+roundtry <- function(x, base){
+  base*round(x/base)
+}#works good rounds 0.75-1.25 to 1 and so on
+
+gum_values[,"chunk"] <- NA
+for(i in 1:length(gum_values$Floods.per.year)){
+  gum_values$chunk[i] <- roundtry(gum_values$Floods.per.year[i], base = 0.5)
+}
+
+chunkmeangum <- NULL
+chunks <- as.vector(c(0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5))
+for(i in 1:length(chunks)){
+  chunktestgum <- gum_values[gum_values[,18] %in% chunks[i], 13]
+  chunkmeangum[i] <- mean(chunktestgum)
+}
+chunkgum <- data.frame(chunkmeangum, chunks)
+####
+gev_values[,"chunk"] <- NA
+for(i in 1:length(gev_values$Floods.per.year)){
+  gev_values$chunk[i] <- roundtry(gev_values$Floods.per.year[i], base = 0.5)
+}
+
+chunkmeangev <- NULL
+for(i in 1:length(chunks)){
+  chunktestgev <- gev_values[gev_values[,18] %in% chunks[i], 13]
+  chunkmeangev[i] <- mean(chunktestgev)
+}
+chunkgev <- data.frame(chunkmeangev, chunks)
+####
+gp_values[,"chunk"] <- NA
+for(i in 1:length(gp_values$Floods.per.year)){
+  gp_values$chunk[i] <- roundtry(gp_values$Floods.per.year[i], base = 0.5)
+}
+
+chunkmeangp <- NULL
+for(i in 1:length(chunks)){
+  chunktestgp <- gp_values[gp_values[,18] %in% chunks[i], 13]
+  chunkmeangp[i] <- mean(chunktestgp)
+}
+chunkgp <- data.frame(chunkmeangp, chunks)
+####
+exp_values[,"chunk"] <- NA
+for(i in 1:length(exp_values$Floods.per.year)){
+  exp_values$chunk[i] <- roundtry(exp_values$Floods.per.year[i], base = 0.5)
+}
+
+chunkmeanexp <- NULL
+for(i in 1:length(chunks)){
+  chunktestexp <- exp_values[exp_values[,18] %in% chunks[i], 13]
+  chunkmeanexp[i] <- mean(chunktestexp)
+}
+chunkexp <- data.frame(chunkmeanexp, chunks)
+
+ggplot()+
+  geom_smooth(data=chunkgev, aes(x=chunkgev$chunks, y= chunkgev$chunkmean), col="darkred", se=F)+
+  geom_smooth(data=chunkgum, aes(x=chunkgum$chunks, y= chunkgum$chunkmean), col="yellow", se=F)+
+  geom_smooth(data=chunkexp, aes(x=chunkexp$chunks, y= chunkexp$chunkmean), col="pink", se=F)+
+  geom_smooth(data=chunkgp, aes(x=chunkgp$chunks, y= chunkgp$chunkmean), col="darkblue", se=F)
+  
+
+
+
+felt_data <-read.table("felt_data.txt",header=T,sep=";")
+FGP <- data.frame(felt_data$STASJON_NR, felt_data$QD_fgp)
+colnames(FGP) <- c("Station","FGP")
+write.table (FGP, file = "FGP_values.txt", sep = "\ ")
+FGP_up <- read.table("FGP_values.txt", header=T, sep="\ ")
+FGP_up$Station <- as.character(FGP_up$Station)
+
+stations <- stations[order(stations$Stations, stations$years), , drop=F]
+FGP_up <- FGP_up[order(FGP_up$Station, FGP_up$FGP), , drop=F]
+stations[, "FGP"] <- NA
+stations$FGP <- FGP_up$FGP
+
+gev_valuesz=gev_values
+gev_valuesz$Station <- as.character(gev_valuesz$Station)
+gev_valuesx <- gev_valuesz[order(gev_valuesz$Station, gev_valuesz$Years, gev_valuesz$ADscore_pot, gev_valuesz$KSscore_pot,
+                                gev_valuesz$ADscore_ams, gev_valuesz$KSscore_ams,gev_valuesz$Floods.per.year,
+                                gev_valuesz$CV.AD.score, gev_valuesz$CV.AD.pvalue,gev_valuesz$CV.KS.score,
+                                gev_valuesz$CV.KS.pvalue, gev_valuesz$Quantile.5.year, gev_valuesz$Quantile.10.year,
+                                gev_valuesz$Quantile.20.year, gev_valuesz$Brier.5.year, gev_valuesz$Brier.10.year,
+                                gev_valuesz$Brier.20.year, gev_valuesz$chunk), , drop=F]
+stations30x <- stations[!(stations$years < 30),]
+gev_valuesx[, "FGP"] <- NA
+gev_valuesx$FGP <- stations30x$FGP
+
+
+.leaflet-container {
+  background-color:rgba(255,0,0,0.0);
+}
+
+mapresults <- function (group.index) 
+{
+  print("in norway_map4groups function")
+  print(group.index)
+  #group.name <- station$name[group.index]
+  group.nve_nb <- stationxtrue$nve_nb[group.index]
+  group.long <- stationxtrue$long[group.index]
+  group.lat <- stationxtrue$lat[group.index]
+  group.FPY <- stationxtrue$FPY[group.index]
+  my.colors <- c("red", "blue", "black", "cyan")
+  my.color.func <- function(x2plot, my.colors) {
+    color.bins <- c("GP", "EXP", "GEV", "GUM")
+    color <- my.colors[x2plot]
+    invisible(color)
+  }
+  
+  map <- leaflet() %>% setView(13, 64, zoom = 4) %>% addWMSTiles("https://openwms.statkart.no/skwms1/wms.norges_grunnkart?", 
+                                                                          layers = "Norges_grunnkart", options = WMSTileOptions(format = "image/png", 
+                                                                          transparent = TRUE), tileOptions(tms = TRUE), attribution = "Kartverket")
+  addCircleMarkers(map, data = stationxtrue, lng = ~long, lat = ~lat, 
+                   popup = paste("Number:", stationx$nve_nb, "Floods per year:", stationxtrue$FPY, 
+                                 sep = " "), radius = 3, color = ~my.color.func(stationxtrue$QSTrue, 
+                                                                                my.colors), stroke = FALSE, fillOpacity = 1) %>% 
+    addMarkers(group.long, group.lat, popup = paste("Number:", group.nve_nb, 
+                                                    "Floods per year:", group.FPY, sep = " ")) %>% 
+    addLegend(position = "bottomright", colors = my.colors, 
+              labels = c("EXP", "GEV", "GP", "GUM"), title = "Best scoring distribution", 
+              opacity = 1)
+}
+
+mapresults(400)
+
+
+###################################################################
+
+fgp_plot2 <- data.frame(station = fgp_plot$station, FGP = fgp_plot$EXP.FGP, method_EXP.brier.pot = fgp_plot$EXP.brier.pot,
+                        method_EXP.brier.ams = fgp_plot$EXP.brier.ams,
+                        method_GP.brier.pot = fgp_plot$GP.brier.pot,
+                        method_GP.brier.ams = fgp_plot$GP.brier.ams,
+                        method_GEV.ams = fgp_plot$GEV.ams,
+                        method_GUM.ams = fgp_plot$GUM.ams)
+
+cols <- c("EXP.brier.pot"="red", "GP.brier.pot"="black", "GEV.ams" ="blue", "GUM.ams" = "cyan", "EXP.brier.ams" ="red", "GP.brier.ams"="black")
+#linet <- c("POT/POT or AMS/AMS"= "solid", "POT/AMS" = "dashed")
+linet <- c("EXP.brier.pot"="solid", "GP.brier.pot"="solid", "GEV.ams" ="solid", "GUM.ams" = "solid", "EXP.brier.ams" ="dotted", "GP.brier.ams"="dotted")
+
+#fgp_plot3 <- tidyr::separate(fgp_plot2, into= c("Type", "Variable"), sep = "_")
+fgp_plot3 <- tidyr::gather(fgp_plot2, key = Tmp, value =`Brier score`, -FGP,-station) %>%
+  tidyr::separate(Tmp, into= c("Type", "Variable" ), sep = "_")
+
+s <- ggplot()+
+  scale_color_manual(values=cols)+
+  scale_linetype_manual(values =linet)+
+  geom_smooth(data=fgp_plot3, aes(x=FGP, y=`Brier score`, col=Variable, lty = Variable), se=F, method = "loess")+
+  theme(legend.position = "bottom")
+s
+returnlevspgum5 = NULL
+returnlevspexp5 = NULL
+returnlevspgp5 = NULL
+returnlevspgev5 = NULL
+returnlevspgum10 = NULL
+returnlevspexp10 = NULL
+returnlevspgp10 = NULL
+returnlevspgev10 = NULL
+returnlevspgum20 = NULL
+returnlevspexp20 = NULL
+returnlevspgp20 = NULL
+returnlevspgev20 = NULL
+returnlevspgum50 = NULL
+returnlevspexp50 = NULL
+returnlevspgp50 = NULL
+returnlevspgev50 = NULL
+returnlevspgum100 = NULL
+returnlevspexp100 = NULL
+returnlevspgp100 = NULL
+returnlevspgev100 = NULL
+returnlevspgum200 = NULL
+returnlevspexp200 = NULL
+returnlevspgp200 = NULL
+returnlevspgev200 = NULL
+
+
+for(i in 1:length(returnlevs$X5.GP)){
+  returnlevspgum5[i] <- returnlevs$X5.GUM[i]/returnlevs$X5.GP[i]
+  returnlevspgum10[i] <- returnlevs$X10.GUM[i]/returnlevs$X10.GP[i]
+  returnlevspgum20[i] <- returnlevs$X20.GUM[i]/returnlevs$X20.GP[i]
+  returnlevspgum50[i] <- returnlevs$X50.GUM[i]/returnlevs$X50.GP[i]
+  returnlevspgum100[i] <- returnlevs$X100.GUM[i]/returnlevs$X100.GP[i]
+  returnlevspgum200[i] <- returnlevs$X200.GUM[i]/returnlevs$X200.GP[i]
+  
+  returnlevspexp5[i] <- returnlevs$X5.EXP[i]/returnlevs$X5.GP[i]
+  returnlevspexp10[i] <- returnlevs$X10.EXP[i]/returnlevs$X10.GP[i]
+  returnlevspexp20[i] <- returnlevs$X20.EXP[i]/returnlevs$X20.GP[i]
+  returnlevspexp50[i] <- returnlevs$X50.EXP[i]/returnlevs$X50.GP[i]
+  returnlevspexp100[i] <- returnlevs$X100.EXP[i]/returnlevs$X100.GP[i]
+  returnlevspexp200[i] <- returnlevs$X200.EXP[i]/returnlevs$X200.GP[i]
+  
+  returnlevspgev5[i] <- returnlevs$X5.GEV[i]/returnlevs$X5.GP[i]
+  returnlevspgev10[i] <- returnlevs$X10.GEV[i]/returnlevs$X10.GP[i]
+  returnlevspgev20[i] <- returnlevs$X20.GEV[i]/returnlevs$X20.GP[i]
+  returnlevspgev50[i] <- returnlevs$X50.GEV[i]/returnlevs$X50.GP[i]
+  returnlevspgev100[i] <- returnlevs$X100.GEV[i]/returnlevs$X100.GP[i]
+  returnlevspgev200[i] <- returnlevs$X200.GEV[i]/returnlevs$X200.GP[i]
+  
+  returnlevspgp5[i] <- returnlevs$X5.GP[i]/returnlevs$X5.GP[i]
+  returnlevspgp10[i] <- returnlevs$X10.GP[i]/returnlevs$X10.GP[i]
+  returnlevspgp20[i] <- returnlevs$X20.GP[i]/returnlevs$X20.GP[i]
+  returnlevspgp50[i] <- returnlevs$X50.GP[i]/returnlevs$X50.GP[i]
+  returnlevspgp100[i] <- returnlevs$X100.GP[i]/returnlevs$X100.GP[i]
+  returnlevspgp200[i] <- returnlevs$X200.GP[i]/returnlevs$X200.GP[i]
+  
+}
+rl_rs <- data.frame(matrix(ncol = 24, nrow= 0))
+rl_rs <- data.frame("gum5" = returnlevspgum5, "gum10" = returnlevspgum10, "gum20" = returnlevspgum20,
+                           "gum50" = returnlevspgum50, "gum100" = returnlevspgum100, "gum200" = returnlevspgum200,
+                           "gev5" = returnlevspgev5, "gev10" = returnlevspgev10, "gev20" = returnlevspgev20,
+                           "gev50" = returnlevspgev50, "gev100" = returnlevspgev100, "gev200" = returnlevspgev200,
+                           "gp5" = returnlevspgp5, "gp10" = returnlevspgp10, "gp20" = returnlevspgp20,
+                           "gp50" = returnlevspgp50, "gp100" = returnlevspgp100, "gp200" = returnlevspgp200,
+                           "exp5" = returnlevspexp5, "exp10" = returnlevspexp10, "exp20" = returnlevspexp20,
+                           "exp50" = returnlevspexp50, "exp100" = returnlevspexp100, "exp200" = returnlevspexp200)
+boxplot (rl_rs$gum5, rl_rs$gev5, rl_rs$gp5, rl_rs$exp5,
+         rl_rs$gum10, rl_rs$gev10, rl_rs$gp10, rl_rs$exp10,
+         rl_rs$gum20, rl_rs$gev20, rl_rs$gp20, rl_rs$exp20,
+         rl_rs$gum50, rl_rs$gev50, rl_rs$gp50, rl_rs$exp50,
+         rl_rs$gum100, rl_rs$gev100, rl_rs$gp100, rl_rs$exp100,
+         rl_rs$gum200, rl_rs$gev200, rl_rs$gp200, rl_rs$exp200)
+boxplot(rl_rs)
+
+mapresults <- function (group.index) 
+{
+  print("in norway_map4groups function")
+  print(group.index)
+  #group.name <- station$name[group.index]
+  group.nve_nb <- stationxtrue$nve_nb[group.index]
+  group.long <- stationxtrue$long[group.index]
+  group.lat <- stationxtrue$lat[group.index]
+  group.FPY <- stationxtrue$FPY[group.index]
+  my.colors <- c(A, B, C, D, E)
+  plotty <- stationxtrue[-which(is.na(stationxtrue$FGP)),]
+  my.color.func <- function(x2plot, my.colors) {
+    color.bins <- c(0.2, 0.4, 0.6, 0.8, 1)
+    color <- my.colors[trunc(x2plot/0.2)+1]
+    invisible(color)
+  }
+  
+  map <- leaflet() %>% setView(13, 64, zoom = 4) %>% addWMSTiles("https://openwms.statkart.no/skwms1/wms.norges_grunnkart?", 
+                                                                 layers = "Norges_grunnkart", options = WMSTileOptions(format = "image/png", 
+                                                                                                                       transparent = TRUE), tileOptions(tms = TRUE), attribution = "Kartverket")
+  addCircleMarkers(map, data = plotty, lng = ~long, lat = ~lat, 
+                   popup = paste("Number:", plotty$nve_nb, "FGP:", plotty$FGP, 
+                                 sep = " "), radius = 3, color = ~my.color.func(plotty$FGP, 
+                                                                                my.colors), stroke = FALSE, fillOpacity = 1) %>% 
+    addMarkers(group.long, group.lat, popup = paste("Number:", group.nve_nb, 
+                                                    "Floods per year:", group.FPY, sep = " ")) %>% 
+    addLegend(position = "bottomright", colors = my.colors, 
+              labels = c(0.2, 0.4, 0.6, 0.8, 1), title = "Flood generating process", 
+              opacity = 1)
+}
+mapresults(500)
